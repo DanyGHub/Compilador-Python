@@ -1,0 +1,12 @@
+# Dependencias principales
+PyQt6==6.10.2
+
+# Herramientas de desarrollo (opcional)
+pyinstaller==5.13.0
+
+# Dependencias secundarias (se instalarán automáticamente con las principales)
+# PyQt6-Qt6==6.10.2
+# PyQt6_sip==13.11.0
+# PySide6_Addons==6.10.2
+# PySide6_Essentials==6.10.2
+# shiboken6==6.10.2

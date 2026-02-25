@@ -1,0 +1,29 @@
+# Entorno virtual
+venv/
+env/
+ENV/
+
+# Archivos generados por Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.spec
+
+# Directorios de compilación
+dist/
+build/
+release/
+
+# Archivos de configuración de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de log
+*.log

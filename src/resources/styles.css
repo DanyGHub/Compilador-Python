@@ -1,0 +1,52 @@
+/* src/resources/style.css */
+QMainWindow {
+    background-color: #2b2b2b;
+}
+
+QPushButton#button {
+    background-color: #0d7377;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 80px;
+    min-height: 30px;
+}
+
+QPushButton#button:hover {
+    background-color: #14a085;
+}
+
+QPushButton#button:pressed {
+    background-color: #0a5c5f;
+}
+
+QLabel#label {
+    color: white;
+    font-size: 14px;
+    background-color: #1e1e1e;
+    border: 1px solid #0d7377;
+    border-radius: 3px;
+    padding: 5px;
+}
+
+QMenuBar {
+    background-color: #1e1e1e;
+    color: white;
+    border-bottom: 1px solid #0d7377;
+}
+
+QMenuBar::item:selected {
+    background-color: #0d7377;
+}
+
+QMenu {
+    background-color: #2b2b2b;
+    color: white;
+    border: 1px solid #0d7377;
+}
+
+QMenu::item:selected {
+    background-color: #0d7377;
+}
