@@ -1,56 +1,36 @@
-# src/main.py
 import sys
-from pathlib import Path
+import os
 from PyQt6.QtWidgets import QApplication, QMainWindow
 
-# Importar desde la carpeta ui
-from ui.ui_test import Ui_MainWindow
+# Importamos Interfaz
+from ui.ui_main import Ui_MainWindow 
 
-class MainWindow(QMainWindow, Ui_MainWindow):
+class CompilerIDE(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setupUi(self)
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
         
-        # Obtener referencias a los widgets (usando los nombres del .ui)
-        self.button.clicked.connect(self.on_button_clicked)
-        self.actionUno.triggered.connect(lambda: self.on_menu_action("Uno"))
-        self.actionDos.triggered.connect(lambda: self.on_menu_action("Dos"))
-        self.actionThree.triggered.connect(lambda: self.on_menu_action("Three"))
-        self.actionCuatro.triggered.connect(lambda: self.on_menu_action("Cuatro"))
-    
-    def on_button_clicked(self):
-        """Método llamado al hacer clic en el botón"""
-        self.label.setText("¡Presionado! 🎉")
-        print("Botón clickeado")
-    
-    def on_menu_action(self, action_name):
-        """Manejador para las acciones del menú"""
-        print(f"Acción seleccionada: {action_name}")
-        self.label.setText(f"Menú: {action_name}")
+        # Cargar estilos QSS
+        self.load_stylesheet()
 
-def load_stylesheet(app):
-    """Carga el archivo QSS desde resources"""
-    # Construir ruta al archivo QSS
-    qss_path = Path(__file__).parent / "resources" / "style.qss"
-    
-    if qss_path.exists():
-        with open(qss_path, "r", encoding="utf-8") as file:
-            app.setStyleSheet(file.read())
-        print(f"✓ Estilo cargado desde: {qss_path}")
-    else:
-        print(f"✗ Archivo QSS no encontrado: {qss_path}")
+    def load_stylesheet(self):
+        # Ruta al archivo de estilos
+        # os.path funciona sin importar desde dónde el script
+        base_path = os.path.dirname(__file__)
+        style_path = os.path.join(base_path, "resources", "style.qss")
+        
+        if os.path.exists(style_path):
+            with open(style_path, "r", encoding="utf-8") as f:
+                self.setStyleSheet(f.read())
+        else:
+            print(f"Advertencia: No se encontró el archivo de estilos en {style_path}")
 
-def main():
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     
-    # Cargar estilos
-    load_stylesheet(app)
-    
-    # Crear y mostrar ventana
-    window = MainWindow()
+    # Aplicar estilos a nivel de App para que afecten a diálogos emergentes también
+    window = CompilerIDE()
     window.show()
     
     sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()

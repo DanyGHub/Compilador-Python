@@ -42,7 +42,7 @@ Compiladores/                  # Carpeta raíz del proyecto
 ## Transformar un archivo '.ui' -> '.py'
 Dentro del entorno 'venv'
     Dentro de la carpeta '\src' y '\ui'
-        * $(venv) pyuic6 test.ui -o ui_test.py
+        * $(venv) pyuic6 mainWindow.ui -o ui_main.py
 
 ## Compilar Proyecto trasnformado (Abrir ventana desde terminal y python)
 Dentro del entorno 'venv'
