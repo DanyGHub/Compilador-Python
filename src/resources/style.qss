@@ -111,3 +111,26 @@ QTabBar::tab:selected {
     background-color: rgba(0, 255, 136, 0.1);
     border-radius: 4px;
 }
+
+/* Estilo para el área de numeración en todas las pestañas */
+QPlainTextEdit[lineNumbers="true"] {
+    background-color: #353535;
+    color: #ffffff;
+    border: none;
+
+    padding-left: 5px;
+    qproperty-cursorWidth: 0; /* Oculta el cursor en la numeración */
+}
+
+/* Estilo para el editor de código en todas las pestañas */
+QPlainTextEdit[codeEditor="true"] {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    border: none;
+}
+
+/* Estilo para el contenedor de la pestaña */
+QWidget#tabContainer {
+    background-color: #1e1e1e;
+}
+
