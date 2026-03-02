@@ -1,6 +1,7 @@
 import os
 from PyQt6.QtWidgets import QMainWindow
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QKeySequence
 
 # Importación de la interfaz generada
 from ui.ui_main import Ui_MainWindow
@@ -45,7 +46,10 @@ class CompilerIDE(QMainWindow):
         
         # Estados de visibilidad iniciales
         self.editor.toggle_editor_view(False)
-        self.project.toggle_sidebar(False) 
+        self.project.toggle_sidebar(False)
+        self.ui.actionClose.setEnabled(False)
+        self.ui.actionSave.setEnabled(False)
+        self.ui.actionSaveAs.setEnabled(False)
         
         # Configuración de terminal
         self.ui.bottomTabWidget.setCurrentIndex(2) 
@@ -57,7 +61,18 @@ class CompilerIDE(QMainWindow):
 
     def connect_signals(self):
         """Conecta los clics de botones y menús."""
+        # Atajos de teclado
+        self.ui.actionNew.setShortcut(QKeySequence("Ctrl+N"))
+        self.ui.actionOpen.setShortcut(QKeySequence("Ctrl+O"))
+        self.ui.actionClose.setShortcut(QKeySequence("Ctrl+W"))
+        self.ui.actionSave.setShortcut(QKeySequence("Ctrl+S"))
+        self.ui.actionSaveAs.setShortcut(QKeySequence("Ctrl+Shift+S"))
+
+        self.ui.actionNew.triggered.connect(self.on_new_file)
         self.ui.actionOpen.triggered.connect(self.on_open_file)
+        self.ui.actionClose.triggered.connect(self.on_close_file)
+        self.ui.actionSave.triggered.connect(self.on_save_file)
+        self.ui.actionSaveAs.triggered.connect(self.on_save_as_file)
         self.ui.actionExit.triggered.connect(self.close)
         self.ui.btnLexical.clicked.connect(self.compiler.run_lexical_analysis)
         
@@ -88,6 +103,10 @@ class CompilerIDE(QMainWindow):
         is_visible = self.ui.sideBarProject.isVisible()
         self.project.toggle_sidebar(not is_visible)
 
+    def on_new_file(self):
+        self.editor.set_content("", "Untitled", None)
+        self.editor.toggle_editor_view(True)
+
     def on_open_file(self):
         """Maneja la apertura de archivos, verifica éxito y actualiza el editor."""
         path, content = self.file_manager.open_file_dialog()
@@ -95,5 +114,37 @@ class CompilerIDE(QMainWindow):
         # Si path y content no son None, la lectura fue correcta
         if path and content is not None:
             filename = os.path.basename(path)
-            self.editor.set_content(content, filename)
+            self.editor.set_content(content, filename, path)
             self.editor.toggle_editor_view(True)
+
+    def on_close_file(self):
+        self.editor.close_tab(self.editor.tabs.currentIndex())
+
+    def on_save_file(self):
+        """Obtiene el código del editor y lo guarda."""
+        content = self.editor.get_current_code()
+        path = self.editor.get_current_path()
+        
+        if path:    # Si el archivo ya tiene una ruta definida, se guarda normal
+            self.file_manager.current_file = path
+            self.file_manager.save_file(content)
+        else:       # Si no, se guarda como
+            self.file_manager.current_file = None
+            self.file_manager.save_as_file(content)
+            path = self.file_manager.current_file # Recuperamos la nueva ruta
+            
+            # Si se guardó (path tiene valor), actualizamos la memoria de la pestaña (tooltip)
+            if path:
+                self.editor.tabs.setTabToolTip(self.editor.tabs.currentIndex(), path)
+
+        if path:
+            self.editor.set_name_tab(self.editor.tabs.currentIndex(), os.path.basename(path))
+
+    def on_save_as_file(self):
+        """Obtiene el código del editor y lo guarda como."""
+        content = self.editor.get_current_code()
+        self.file_manager.save_as_file(content)
+        path = self.file_manager.current_file
+        if path:
+            self.editor.tabs.setTabToolTip(self.editor.tabs.currentIndex(), path)
+            self.editor.set_name_tab(self.editor.tabs.currentIndex(), os.path.basename(path))

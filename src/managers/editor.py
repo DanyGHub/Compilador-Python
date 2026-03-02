@@ -23,7 +23,7 @@ class EditorManager:
         self.ui.lineNumberArea.hide()
         self.ui.editorHeader.hide()
 
-    def set_content(self, text, filename="Untitled"):
+    def set_content(self, text, filename="Untitled", path=None):
         # 1. Contenedor principal de la pestaña (Vertical para incluir la barra de estado abajo)
         tab_widget = QWidget()
         tab_widget.setObjectName("tabContainer")
@@ -47,6 +47,7 @@ class EditorManager:
         # --- EDITOR DE CÓDIGO ---
         code_editor = QPlainTextEdit()
         code_editor.setProperty("codeEditor", "true") 
+        code_editor.setObjectName("mainEditor")
         code_editor.setPlainText(text)
         code_editor.setFont(QFont("Courier New", 10))
         code_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
@@ -121,15 +122,39 @@ class EditorManager:
         update_ui_editor()
 
         index = self.tabs.addTab(tab_widget, filename)
+        if path:
+            self.tabs.setTabToolTip(index, path)
         self.tabs.setCurrentIndex(index)
         
         tab_widget.style().unpolish(tab_widget)
         tab_widget.style().polish(tab_widget)
 
+    def set_name_tab(self, index, name):
+        self.tabs.setTabText(index, name)
+
+    def get_editor_view(self):
+        return self.ui.editorSubContainer.isVisible()
+
     def toggle_editor_view(self, visible: bool):
         self.ui.editorSubContainer.setVisible(visible)
+        self.ui.actionClose.setEnabled(visible)
+        self.ui.actionSave.setEnabled(visible)
+        self.ui.actionSaveAs.setEnabled(visible)
 
     def close_tab(self, index):
         self.tabs.removeTab(index)
         if self.tabs.count() == 0:
             self.toggle_editor_view(False)
+
+    def get_current_code(self):
+        """Retorna el texto del editor en la pestaña activa."""
+        current_widget = self.tabs.currentWidget()
+        if current_widget:
+            editor = current_widget.findChild(QPlainTextEdit, "mainEditor")
+            if editor:
+                return editor.toPlainText()
+        return ""
+
+    def get_current_path(self):
+        """Retorna la ruta del archivo guardada en el tooltip de la pestaña."""
+        return self.tabs.tabToolTip(self.tabs.currentIndex())
