@@ -1,4 +1,5 @@
 import os
+import sys
 from PyQt6.QtWidgets import QMainWindow
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence
@@ -85,7 +86,12 @@ class CompilerIDE(QMainWindow):
         self.ui.btnFolder.clicked.connect(self.toggle_project_sidebar)
 
     def load_stylesheet(self):
-        base_path = os.path.dirname(__file__)
+        # Verificar si estamos en el ejecutable empaquetado por PyInstaller
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(__file__)
+            
         style_path = os.path.join(base_path, "resources", "style.qss")
         if os.path.exists(style_path):
             try:
