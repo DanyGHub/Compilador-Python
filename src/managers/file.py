@@ -9,10 +9,13 @@ class FileManager:
     def open_file_dialog(self):
         """Abre el diálogo de archivos y retorna la ruta y contenido."""
         file_path, _ = QFileDialog.getOpenFileName(
-            self.parent, "Abrir archivo", "", "Archivos de texto (*.txt);;Todos (*)"
+            self.parent, "Open File", "", "All Files (*)"
         )
         if file_path:
             self.current_file = file_path
-            with open(file_path, "r", encoding="utf-8") as f:
-                return file_path, f.read()
+            try:
+                with open(file_path, "r") as f:
+                    return file_path, f.read()
+            except Exception as e:
+                print(f"Error al leer el archivo: {e}")
         return None, None

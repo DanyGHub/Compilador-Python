@@ -57,6 +57,7 @@ class CompilerIDE(QMainWindow):
 
     def connect_signals(self):
         """Conecta los clics de botones y menús."""
+        self.ui.actionOpen.triggered.connect(self.on_open_file)
         self.ui.actionExit.triggered.connect(self.close)
         self.ui.btnLexical.clicked.connect(self.compiler.run_lexical_analysis)
         
@@ -86,3 +87,13 @@ class CompilerIDE(QMainWindow):
         """Lógica para alternar la visibilidad de la barra de proyecto."""
         is_visible = self.ui.sideBarProject.isVisible()
         self.project.toggle_sidebar(not is_visible)
+
+    def on_open_file(self):
+        """Maneja la apertura de archivos, verifica éxito y actualiza el editor."""
+        path, content = self.file_manager.open_file_dialog()
+        
+        # Si path y content no son None, la lectura fue correcta
+        if path and content is not None:
+            filename = os.path.basename(path)
+            self.editor.set_content(content, filename)
+            self.editor.toggle_editor_view(True)
