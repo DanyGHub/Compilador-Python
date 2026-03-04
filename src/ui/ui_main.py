@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'mainWindow.ui'
+# Form implementation generated from reading ui file 'src/ui/mainWindow.ui'
 #
 # Created by: PyQt6 UI code generator 6.10.2
 #
@@ -155,9 +155,9 @@ class Ui_MainWindow(object):
         self.btnIntermediate = QtWidgets.QPushButton(parent=self.rightAccessBar)
         self.btnIntermediate.setObjectName("btnIntermediate")
         self.vLayoutRight.addWidget(self.btnIntermediate)
-        self.btnHash = QtWidgets.QPushButton(parent=self.rightAccessBar)
-        self.btnHash.setObjectName("btnHash")
-        self.vLayoutRight.addWidget(self.btnHash)
+        self.btnOptim = QtWidgets.QPushButton(parent=self.rightAccessBar)
+        self.btnOptim.setObjectName("btnOptim")
+        self.vLayoutRight.addWidget(self.btnOptim)
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.vLayoutRight.addItem(spacerItem2)
         self.mainLayout.addWidget(self.mainSplitter)
@@ -196,8 +196,11 @@ class Ui_MainWindow(object):
         self.actionIntermediateCode.setObjectName("actionIntermediateCode")
         self.actionAbout = QtGui.QAction(parent=MainWindow)
         self.actionAbout.setObjectName("actionAbout")
+        self.actionOpen_Folder = QtGui.QAction(parent=MainWindow)
+        self.actionOpen_Folder.setObjectName("actionOpen_Folder")
         self.menuFile.addAction(self.actionNew)
         self.menuFile.addAction(self.actionOpen)
+        self.menuFile.addAction(self.actionOpen_Folder)
         self.menuFile.addAction(self.actionClose)
         self.menuFile.addSeparator()
         self.menuFile.addAction(self.actionSave)
@@ -237,7 +240,7 @@ class Ui_MainWindow(object):
         self.btnSyntactic.setText(_translate("MainWindow", "SIN"))
         self.btnSemantic.setText(_translate("MainWindow", "SEM"))
         self.btnIntermediate.setText(_translate("MainWindow", "INT"))
-        self.btnHash.setText(_translate("MainWindow", "HASH"))
+        self.btnOptim.setText(_translate("MainWindow", "OPT"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.menuCompile.setTitle(_translate("MainWindow", "Compile"))
         self.menuAnalysis.setTitle(_translate("MainWindow", "Analysis"))
@@ -253,3 +256,4 @@ class Ui_MainWindow(object):
         self.actionSemantic.setText(_translate("MainWindow", "Semantic"))
         self.actionIntermediateCode.setText(_translate("MainWindow", "Intermediate Code"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
+        self.actionOpen_Folder.setText(_translate("MainWindow", "Open Folder"))

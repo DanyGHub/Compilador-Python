@@ -41,3 +41,20 @@ class FileManager:
                 self.current_file = file_path
             except Exception as e:
                 print(f"Error al guardar el archivo: {e}")
+
+    def open_folder_dialog(self):
+        """Abre el diálogo para seleccionar una carpeta."""
+        folder_path = QFileDialog.getExistingDirectory(
+            self.parent, "Select Project Folder", ""
+        )
+        return folder_path
+
+    def read_file(self, file_path):
+        """Lee el contenido de un archivo dado su path."""
+        if file_path:
+            try:
+                with open(file_path, "r") as f:
+                    return f.read()
+            except Exception as e:
+                print(f"Error al leer el archivo: {e}")
+        return None

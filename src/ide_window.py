@@ -66,6 +66,7 @@ class CompilerIDE(QMainWindow):
         # Atajos de teclado
         self.ui.actionNew.setShortcut(QKeySequence("Ctrl+N"))
         self.ui.actionOpen.setShortcut(QKeySequence("Ctrl+O"))
+        self.ui.actionOpen_Folder.setShortcut(QKeySequence("Ctrl+Shift+O"))
         self.ui.actionClose.setShortcut(QKeySequence("Ctrl+W"))
         self.ui.actionSave.setShortcut(QKeySequence("Ctrl+S"))
         self.ui.actionSaveAs.setShortcut(QKeySequence("Ctrl+Shift+S"))
@@ -73,6 +74,7 @@ class CompilerIDE(QMainWindow):
         self.ui.actionNew.triggered.connect(self.on_new_file)
         self.ui.actionOpen.triggered.connect(self.on_open_file)
         self.ui.actionClose.triggered.connect(self.on_close_file)
+        self.ui.actionOpen_Folder.triggered.connect(self.on_open_folder)
         self.ui.actionSave.triggered.connect(self.on_save_file)
         self.ui.actionSaveAs.triggered.connect(self.on_save_as_file)
         self.ui.actionExit.triggered.connect(self.close)
@@ -85,6 +87,9 @@ class CompilerIDE(QMainWindow):
         
         # Toggle de Carpeta
         self.ui.btnFolder.clicked.connect(self.toggle_project_sidebar)
+
+        # Abrir archivo al hacer doble clic en el explorador
+        self.ui.treeViewExplorer.doubleClicked.connect(self.on_tree_file_double_clicked)
 
     def load_stylesheet(self):
         # Verificar si estamos en el ejecutable empaquetado por PyInstaller
@@ -109,6 +114,26 @@ class CompilerIDE(QMainWindow):
         """Lógica para alternar la visibilidad de la barra de proyecto."""
         is_visible = self.ui.sideBarProject.isVisible()
         self.project.toggle_sidebar(not is_visible)
+
+    def on_open_folder(self):
+        """Abre un diálogo para seleccionar carpeta y la carga en el explorador."""
+        path = self.file_manager.open_folder_dialog()
+        if path:
+            self.project.setup_explorer(path)
+            self.project.toggle_sidebar(True)
+
+    def on_tree_file_double_clicked(self, index):
+        """Maneja el evento de doble clic en el árbol de directorios."""
+        model = self.project.model
+        file_path = model.filePath(index)
+        
+        # Verificar que sea un archivo y no una carpeta
+        if not model.isDir(index):
+            content = self.file_manager.read_file(file_path)
+            if content is not None:
+                filename = os.path.basename(file_path)
+                self.editor.set_content(content, filename, file_path)
+                self.editor.toggle_editor_view(True)
 
     def on_new_file(self):
         self.editor.set_content("", "Untitled", None)
@@ -166,7 +191,7 @@ class CompilerIDE(QMainWindow):
         # Botones de archivos
         self.editor.btnNew.clicked.connect(self.ui.actionNew.trigger)
         self.editor.btnOpen.clicked.connect(self.ui.actionOpen.trigger)
-        # self.editor.btnOpenDir.clicked.connect(self.ui.actionSave.trigger)        Añadir funcion
+        self.editor.btnOpenDir.clicked.connect(self.ui.actionOpen_Folder.trigger)
         self.editor.btnSave.clicked.connect(self.ui.actionSave.trigger)
         self.editor.btnSaveAs.clicked.connect(self.ui.actionSaveAs.trigger)
         

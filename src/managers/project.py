@@ -6,10 +6,13 @@ class ProjectManager:
     def __init__(self, ui):
         self.ui = ui
         self.model = QFileSystemModel()
+        self.current_path = None
         
     def setup_explorer(self, path=None):
         if not path:
-            path = QDir.currentPath()
+            return
+            
+        self.current_path = path
             
         # 1. Configurar el modelo
         self.model.setRootPath(path)
