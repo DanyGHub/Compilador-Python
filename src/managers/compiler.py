@@ -5,5 +5,5 @@ class CompilerManager:
         self.terminal = terminal
 
     def run_lexical_analysis(self):
-        self.terminal.log("Ejecutando análisis léxico...")
+        self.terminal.log("$_")
         # Lógica futura aquí

@@ -38,8 +38,9 @@ class CompilerIDE(QMainWindow):
         # 5. Conectar señales y slots (Eventos)
         self.connect_signals()
         
-        # Nota: Eliminamos el punto 6 para que respete el estado False inicial
-
+        # 6. Conectamos la toolbar
+        self.connect_toolbar_actions()
+        
     def setup_initial_state(self):
         """Define qué se ve y qué no al abrir el IDE por primera vez."""
         self.setWindowTitle("Compilador IDE")
@@ -125,6 +126,12 @@ class CompilerIDE(QMainWindow):
 
     def on_close_file(self):
         self.editor.close_tab(self.editor.tabs.currentIndex())
+        
+    # En editor.py, modifica close_tab
+    def close_tab(self, index):
+        self.tabs.removeTab(index)
+        if self.tabs.count() == 0:
+            self.toggle_editor_view(False) # Esto ahora bloqueará los menús automáticamente
 
     def on_save_file(self):
         """Obtiene el código del editor y lo guarda."""
@@ -154,3 +161,18 @@ class CompilerIDE(QMainWindow):
         if path:
             self.editor.tabs.setTabToolTip(self.editor.tabs.currentIndex(), path)
             self.editor.set_name_tab(self.editor.tabs.currentIndex(), os.path.basename(path))
+    
+    def connect_toolbar_actions(self):
+        # Botones de archivos
+        self.editor.btnNew.clicked.connect(self.ui.actionNew.trigger)
+        self.editor.btnOpen.clicked.connect(self.ui.actionOpen.trigger)
+        # self.editor.btnOpenDir.clicked.connect(self.ui.actionSave.trigger)        Añadir funcion
+        self.editor.btnSave.clicked.connect(self.ui.actionSave.trigger)
+        self.editor.btnSaveAs.clicked.connect(self.ui.actionSaveAs.trigger)
+        
+        # Botones de compilación
+        self.editor.btnLex.clicked.connect(self.ui.actionLexical.trigger)
+        self.editor.btnSin.clicked.connect(self.ui.actionSyntactic.trigger)
+        self.editor.btnSem.clicked.connect(self.ui.actionSemantic.trigger)
+        self.editor.btnInt.clicked.connect(self.ui.actionIntermediateCode.trigger)
+        self.editor.btnCompile.clicked.connect(self.ui.actionIntermediateCode.trigger)
