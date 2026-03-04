@@ -50,3 +50,8 @@ Dentro del entorno 'venv'
 Dentro del entorno 'venv'
     `>`Dentro de la carpeta '\src'
         `>`* $(venv) python main.py
+
+## Generar archivo ejecutable
+Dentro del entorno 'venv'
+    `>`Dentro de la carpeta '\src'
+        `>`* $(venv) pyinstaller --noconfirm --onefile --name "Output Name" --noconsole --add-data "resources;resources" main.py
