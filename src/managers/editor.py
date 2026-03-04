@@ -105,6 +105,7 @@ class EditorManager:
         line_numbers.setProperty("lineNumbers", "true") 
         line_numbers.setFixedWidth(50)
         line_numbers.setReadOnly(True)
+        line_numbers.setFont(QFont("Courier New", 10))
         line_numbers.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         code_editor = QPlainTextEdit()
@@ -112,6 +113,7 @@ class EditorManager:
         code_editor.setObjectName("mainEditor")
         code_editor.setPlainText(text)
         code_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        code_editor.setFont(QFont("Courier New", 10))
 
         # Barra de estado inferior (Línea/Columna)
         status_bar = QLabel(" Línea 1, Columna 1")
