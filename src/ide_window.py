@@ -53,14 +53,18 @@ class CompilerIDE(QMainWindow):
         self.ui.actionSave.setEnabled(False)
         self.ui.actionSaveAs.setEnabled(False)
         
+        self.ui.rightAccessBar.setFixedWidth(70)
+        self.ui.mainSplitter.setCollapsible(3, False)
+        
+        
         # Configuración de terminal
         self.ui.bottomTabWidget.setCurrentIndex(2) 
         self.terminal.log("IDE Iniciado correctamente...")
         
         # Tamaños por defecto de splitters
         self.ui.centerSplitter.setSizes([500, 200])
-        self.ui.mainSplitter.setSizes([200, 900])
-
+        self.ui.mainSplitter.setSizes([200, 500, 330, 70])
+        
     def connect_signals(self):
         """Conecta los clics de botones y menús."""
         # Atajos de teclado
@@ -78,7 +82,12 @@ class CompilerIDE(QMainWindow):
         self.ui.actionSave.triggered.connect(self.on_save_file)
         self.ui.actionSaveAs.triggered.connect(self.on_save_as_file)
         self.ui.actionExit.triggered.connect(self.close)
-        self.ui.btnLexical.clicked.connect(self.compiler.run_lexical_analysis)
+        # Dentro de connect_signals en ide_window.py
+        self.ui.btnLexical.clicked.connect(lambda: self.compiler.toggle_panel(0, "Léxico"))
+        self.ui.btnSyntactic.clicked.connect(lambda: self.compiler.toggle_panel(1, "Sintáctico"))
+        self.ui.btnSemantic.clicked.connect(lambda: self.compiler.toggle_panel(2, "Semántico"))
+        self.ui.btnIntermediate.clicked.connect(lambda: self.compiler.toggle_panel(3, "Código Intermedio"))
+        self.ui.btnHash.clicked.connect(lambda: self.compiler.toggle_panel(4, "HASH TABLE"))
         
         # Toggle de Terminal
         self.ui.btnTerminalView.clicked.connect(

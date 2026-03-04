@@ -134,47 +134,25 @@ QWidget#tabContainer {
     background-color: #1e1e1e;
 }
 
-/* Barra de herramientas superior del editor */
-#toolbarFrame {
-    background-color: #252526;
-    border-bottom: 1px solid #1a1a1a;
-}
-
-#toolbarSeparator {
-    background-color: #444444;
-    width: 1px;
-    margin-top: 8px;
-    margin-bottom: 8px;
-    margin-left: 5px;
-    margin-right: 5px;
-}
-
-#toolbarFrame QPushButton {
-    background-color: transparent;
-    color: #cccccc;
-    border: 1px solid transparent;
-    border-radius: 3px;
-    font-weight: bold;
-}
-
-#toolbarFrame QPushButton:hover {
-    background-color: #37373d;
-    border: 1px solid #454545;
-}
-
-#toolbarFrame QPushButton:pressed {
-    background-color: #007acc;
-    color: white;
-}
-
-#toolbarFrame QPushButton:disabled {
-    color: #555555;
-}
-
-/* Tooltips */
-QToolTip {
+/* Panel lateral derecho */
+#rightAnalysisPanel {
     background-color: #1e1e1e;
+    border-left: 1px solid #333333;
+}
+
+/* Encabezado del análisis (Azul resaltado como en VS Code) */
+#analysisHeader {
+    background-color: #252526;
+    color: #007acc;
+    font-weight: bold;
+    border-bottom: 2px solid #007acc;
+    text-transform: uppercase;
+    font-size: 10px;
+}
+
+/* Terminal interna */
+#subTerminal {
+    background-color: #151515;
     color: #d4d4d4;
-    border: 1px solid #454545;
-    padding: 2px;
+    border: none;
 }
