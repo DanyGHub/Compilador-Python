@@ -57,7 +57,10 @@ class CompilerIDE(QMainWindow):
         # Atajos
         self.ui.actionNew.setShortcut(QKeySequence("Ctrl+N"))
         self.ui.actionOpen.setShortcut(QKeySequence("Ctrl+O"))
+        self.ui.actionOpen_Folder.setShortcut(QKeySequence("Ctrl+Shift+O"))
+        self.ui.actionClose.setShortcut(QKeySequence("Ctrl+W"))
         self.ui.actionSave.setShortcut(QKeySequence("Ctrl+S"))
+        self.ui.actionSaveAs.setShortcut(QKeySequence("Ctrl+Shift+S"))
 
         # Slots de Archivo
         self.ui.actionNew.triggered.connect(self.on_new_file)
@@ -77,6 +80,22 @@ class CompilerIDE(QMainWindow):
         
         self.ui.btnFolder.clicked.connect(self.toggle_project_sidebar)
         self.ui.treeViewExplorer.doubleClicked.connect(self.on_tree_file_double_clicked)
+
+    def load_stylesheet(self):
+        # Verificar si estamos en el ejecutable empaquetado por PyInstaller
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+
+        else:
+            base_path = os.path.dirname(__file__)
+            
+        style_path = os.path.join(base_path, "resources", "style.qss")
+        if os.path.exists(style_path):
+            try:
+                with open(style_path, "r", encoding="utf-8") as f:
+                    self.setStyleSheet(f.read())
+            except Exception as e:
+                print(f"Error al leer el archivo de estilos: {e}")
         
     def run_lexical_analysis(self):
         code = self.editor.get_current_code()

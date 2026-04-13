@@ -42,6 +42,12 @@ class EditorManager:
         self.btnOpenDir = QPushButton("📁")
         self.btnSave = QPushButton("💾")
         self.btnSaveAs = QPushButton("📑")
+
+        self.btnNew.setToolTip("New File (Ctrl+N)")
+        self.btnOpen.setToolTip("Open File (Ctrl+O)")
+        self.btnOpenDir.setToolTip("Open Directory (Ctrl+Shift+O)")
+        self.btnSave.setToolTip("Save (Ctrl+S)")
+        self.btnSaveAs.setToolTip("Save As... (Ctrl+Shift+S)")
         
         sep = QFrame()
         sep.setFixedWidth(1)
@@ -52,6 +58,12 @@ class EditorManager:
         self.btnSem = QPushButton("SEM")
         self.btnInt = QPushButton("INT")
         self.btnCompile = QPushButton("⚙️")
+
+        self.btnLex.setToolTip("Lexical Analysis")
+        self.btnSin.setToolTip("Syntactic Analysis")
+        self.btnSem.setToolTip("Semantic Analysis")
+        self.btnInt.setToolTip("Intermediate Code")
+        self.btnCompile.setToolTip("Compile")
         
         for btn in [self.btnNew, self.btnOpen, self.btnOpenDir, self.btnSave, self.btnSaveAs]:
             btn.setFixedSize(28, 28)

@@ -20,12 +20,14 @@ class FileManager:
                 print(f"Error al leer el archivo: {e}")
         return None, None
     
-    def save_file(self, content):
-        """Guarda el contenido en el archivo actual."""
-        if self.current_file:
+    def save_file(self, content, path=None):
+        """Guarda el contenido en la ruta dada o en el archivo actual."""
+        save_path = path if path else self.current_file
+        if save_path:
             try:
-                with open(self.current_file, "w") as f:
+                with open(save_path, "w") as f:
                     f.write(content)
+                self.current_file = save_path
             except Exception as e:
                 print(f"Error al guardar el archivo: {e}")
     
