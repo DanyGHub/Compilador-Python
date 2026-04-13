@@ -37,12 +37,14 @@ class CustomHighlighter(QSyntaxHighlighter):
             (QRegularExpression(r'\b\d+(\.\d+)?\b'), number_format)
         )
 
-        # 3. Números mal formados (error)
-        error_format = create_format(COLOR_ERROR)
+        # 3. Errores léxicos
+        error_format = create_format(COLOR_ERROR, bold=True)
         invalid_patterns = [
-            r'\b\d+(\.\d+){2,}\b',   # 34.34.34
-            r'\b\d+\.(?!\d)',        # 12.
-            r'(?<!\d)\.\d+\b'        # .45
+            r'\d+\.[a-zA-Z_]+',       # Ejemplo: 34.algo
+            r'\d+(\.\d+){2,}',        # Ejemplo: 34.34.34
+            r'\d+\.(?!\d)',           # Ejemplo: 12.
+            r'(?<!\d)\.\d+',          # Ejemplo: .45
+            r'[^\s\w\+\-\*/%\^=<>!&\|\(\)\{\},;\.]' # Caracteres ilegales
         ]
         for pat in invalid_patterns:
             self.highlighting_rules.append((QRegularExpression(pat), error_format))
@@ -74,8 +76,8 @@ class CustomHighlighter(QSyntaxHighlighter):
         for op in comp_ops:
             self.highlighting_rules.append((QRegularExpression(op), operator_format))
 
-        # 8. Operadores simples y asignación
-        simple_ops = [r'\+', r'\-', r'\*', r'/', r'%', r'\^', r'<', r'>', r'!', r'=']
+        # 8. Operadores simples y asignación (incluye el punto)
+        simple_ops = [r'\+', r'\-', r'\*', r'/', r'%', r'\^', r'<', r'>', r'!', r'=', r'\.']
         for op in simple_ops:
             self.highlighting_rules.append((QRegularExpression(op), operator_format))
 

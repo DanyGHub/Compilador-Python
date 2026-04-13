@@ -97,10 +97,11 @@ class CompilerIDE(QMainWindow):
             except Exception as e:
                 print(f"Error al leer el archivo de estilos: {e}")
         
+    # Busca esta función en ide_window.py
     def run_lexical_analysis(self):
         code = self.editor.get_current_code()
         if code:
-            self.compiler.run_lexical_analysis(code)
+            self.compiler.run_lexical_analysis(code)   
             self.terminal.log("Análisis Léxico finalizado.")
         else:
             self.terminal.log("No hay código para analizar.")
