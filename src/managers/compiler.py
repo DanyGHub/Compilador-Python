@@ -1,6 +1,5 @@
 import re
-from PyQt6.QtWidgets import (QStackedWidget, QTextEdit, QVBoxLayout, 
-                             QLabel, QFrame, QTableWidget, QTableWidgetItem, QHeaderView)
+from PyQt6.QtWidgets import QStackedWidget, QTextEdit, QVBoxLayout, QLabel, QFrame, QTableWidget, QTableWidgetItem, QHeaderView
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 

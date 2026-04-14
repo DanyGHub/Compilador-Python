@@ -24,20 +24,14 @@ class CustomHighlighter(QSyntaxHighlighter):
         COLOR_ERROR      = "#F44747"   # Rojo
 
         # --- Reglas en orden de prioridad (las últimas sobrescriben) ---
-
-        # 1. Comentarios de una línea (máxima prioridad)
-        comment_format = create_format(COLOR_COMMENT)
-        self.highlighting_rules.append(
-            (QRegularExpression(r'//[^\n]*'), comment_format)
-        )
-
-        # 2. Números válidos (enteros y decimales)
+      
+        # Números válidos (enteros y decimales)
         number_format = create_format(COLOR_NUMBER)
         self.highlighting_rules.append(
             (QRegularExpression(r'\b\d+(\.\d+)?\b'), number_format)
         )
 
-        # 3. Errores léxicos
+        # Errores léxicos
         error_format = create_format(COLOR_ERROR, bold=True)
         invalid_patterns = [
             r'\d+\.[a-zA-Z_]+',       # Ejemplo: 34.algo
@@ -49,18 +43,18 @@ class CustomHighlighter(QSyntaxHighlighter):
         for pat in invalid_patterns:
             self.highlighting_rules.append((QRegularExpression(pat), error_format))
 
-        # 4. Cadenas y caracteres
+        # Cadenas y caracteres
         string_format = create_format(COLOR_STRING)
         self.highlighting_rules.append((QRegularExpression(r'"[^"]*"'), string_format))
         self.highlighting_rules.append((QRegularExpression(r"'.?'"), string_format))
 
-        # 5. Identificadores (incluye palabras reservadas, luego se sobrescriben)
+        # Identificadores (incluye palabras reservadas, luego se sobrescriben)
         id_format = create_format(COLOR_IDENTIFIER)
         self.highlighting_rules.append(
             (QRegularExpression(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b'), id_format)
         )
 
-        # 6. Palabras reservadas (sobrescriben identificadores)
+        # Palabras reservadas (sobrescriben identificadores)
         keyword_format = create_format(COLOR_KEYWORD, bold=True)
         keywords = [
             "if", "else", "end", "do", "while", "switch", "case",
@@ -70,24 +64,30 @@ class CustomHighlighter(QSyntaxHighlighter):
             pattern = QRegularExpression(fr'\b{word}\b')
             self.highlighting_rules.append((pattern, keyword_format))
 
-        # 7. Operadores compuestos
+        # Operadores compuestos
         operator_format = create_format(COLOR_OPERATOR)
         comp_ops = [r'<=', r'>=', r'!=', r'==', r'&&', r'\|\|', r'\+\+', r'\-\-']
         for op in comp_ops:
             self.highlighting_rules.append((QRegularExpression(op), operator_format))
 
-        # 8. Operadores simples y asignación (incluye el punto)
+        # Operadores simples y asignación (incluye el punto)
         simple_ops = [r'\+', r'\-', r'\*', r'/', r'%', r'\^', r'<', r'>', r'!', r'=', r'\.']
         for op in simple_ops:
             self.highlighting_rules.append((QRegularExpression(op), operator_format))
 
-        # 9. Símbolos
+        # Símbolos
         symbol_format = create_format(COLOR_SYMBOL)
         symbols = [r'\(', r'\)', r'\{', r'\}', r',', r';']
         for sym in symbols:
             self.highlighting_rules.append((QRegularExpression(sym), symbol_format))
 
-        # 10. Comentarios multilínea (estado especial)
+        # Comentarios de una línea
+        comment_format = create_format(COLOR_COMMENT)
+        self.highlighting_rules.append(
+            (QRegularExpression(r'//[^\n]*'), comment_format)
+        )
+
+        # Comentarios multilínea (estado especial)
         self.multiLineCommentFormat = comment_format
         self.commentStartExpression = QRegularExpression(r'/\*')
         self.commentEndExpression = QRegularExpression(r'\*/')

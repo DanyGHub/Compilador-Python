@@ -10,23 +10,21 @@ class TerminalManager:
             self.ui.terminalOutput.append(f"$ {text}")
 
     def clear_problems(self):
-        """Limpia el contenido de la pestaña Problems buscando el QTextEdit interno."""
-        problems_tab = self.ui.bottomTabWidget.widget(0)
-        out = problems_tab.findChild(QTextEdit)
-        if out:
-            out.clear()
+        """Limpia el contenido de la pestaña Problems."""
+        if hasattr(self.ui, 'listProblems'):
+            self.ui.listProblems.clear()
 
     def log_problem(self, phase, message):
         """Escribe errores en la pestaña Problems con el formato solicitado."""
-        problems_tab = self.ui.bottomTabWidget.widget(0)
-        out = problems_tab.findChild(QTextEdit)
-        
-        if out:
+        if hasattr(self.ui, 'listProblems'):
+            out = self.ui.listProblems
             header = f"==== {phase.upper()} ===="
-            if not out.toPlainText().strip():
-                out.append(header)
             
-            out.append(f"Error, {message}")
+            # Si la lista está vacía, agregamos el encabezado
+            if out.count() == 0:
+                out.addItem(header)
+            
+            out.addItem(f"Error, {message}")
             # Cambia a la pestaña de Problems (índice 0)
             self.ui.bottomTabWidget.setCurrentIndex(0)
 
