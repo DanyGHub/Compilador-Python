@@ -58,7 +58,7 @@ class CustomHighlighter(QSyntaxHighlighter):
         keyword_format = create_format(COLOR_KEYWORD, bold=True)
         keywords = [
             "if", "else", "end", "do", "while", "switch", "case",
-            "int", "float", "main", "cin", "cout", "return"
+            "int", "float", "main", "cin", "cout", "return","for"
         ]
         for word in keywords:
             pattern = QRegularExpression(fr'\b{word}\b')
@@ -93,7 +93,12 @@ class CustomHighlighter(QSyntaxHighlighter):
         self.commentEndExpression = QRegularExpression(r'\*/')
 
     def highlightBlock(self, text):
-        # Aplicar reglas estándar
+        # --- NUEVO: Formato por defecto para todo el bloque (gris claro) ---
+        default_fmt = QTextCharFormat()
+        default_fmt.setForeground(QColor("#D4D4D4"))
+        self.setFormat(0, len(text), default_fmt)
+
+        # Aplicar reglas estándar (sobrescriben el formato por defecto)
         for pattern, fmt in self.highlighting_rules:
             expression = QRegularExpression(pattern)
             it = expression.globalMatch(text)
