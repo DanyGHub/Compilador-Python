@@ -20,85 +20,81 @@ class CustomHighlighter(QSyntaxHighlighter):
         COLOR_OPERATOR   = "#D4D4D4"   # Gris claro
         COLOR_SYMBOL     = "#D4D4D4"
         COLOR_IDENTIFIER = "#9CDCFE"   # Azul claro
-        COLOR_STRING     = "#CE9178"   # Naranja (para cadenas)
+        COLOR_STRING     = "#CE9178"   # Naranja
         COLOR_ERROR      = "#F44747"   # Rojo
 
-        # --- Reglas en orden de prioridad (las últimas sobrescriben) ---
-      
-        # Números válidos (enteros y decimales)
-        number_format = create_format(COLOR_NUMBER)
-        self.highlighting_rules.append(
-            (QRegularExpression(r'\b\d+(\.\d+)?\b'), number_format)
-        )
-
-        # Errores léxicos
-        error_format = create_format(COLOR_ERROR, bold=True)
-        invalid_patterns = [
-            r'\d+\.[a-zA-Z_]+',       # Ejemplo: 34.algo
-            r'\d+(\.\d+){2,}',        # Ejemplo: 34.34.34
-            r'\d+\.(?!\d)',           # Ejemplo: 12.
-            r'(?<!\d)\.\d+',          # Ejemplo: .45
-            r'[^\s\w\+\-\*/%\^=<>!&\|\(\)\{\},;\.]' # Caracteres ilegales
-        ]
-        for pat in invalid_patterns:
-            self.highlighting_rules.append((QRegularExpression(pat), error_format))
-
-        # Cadenas y caracteres
-        string_format = create_format(COLOR_STRING)
-        self.highlighting_rules.append((QRegularExpression(r'"[^"]*"'), string_format))
-        self.highlighting_rules.append((QRegularExpression(r"'.?'"), string_format))
-
-        # Identificadores (incluye palabras reservadas, luego se sobrescriben)
+        # 1. Identificadores (Base para palabras reservadas)
         id_format = create_format(COLOR_IDENTIFIER)
         self.highlighting_rules.append(
             (QRegularExpression(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b'), id_format)
         )
 
-        # Palabras reservadas (sobrescriben identificadores)
+        # 2. Palabras reservadas (Sobrescriben identificadores)
         keyword_format = create_format(COLOR_KEYWORD, bold=True)
         keywords = [
             "if", "else", "end", "do", "while", "switch", "case",
-            "int", "float", "main", "cin", "cout", "return","for"
+            "int", "float", "real", "main", "cin", "cout", "return", "then", "for"
         ]
         for word in keywords:
             pattern = QRegularExpression(fr'\b{word}\b')
             self.highlighting_rules.append((pattern, keyword_format))
 
-        # Operadores compuestos
+        # 3. Números válidos (Enteros y Reales bien formados)
+        number_format = create_format(COLOR_NUMBER)
+        # Real: dígito(s) + punto + dígito(s)
+        self.highlighting_rules.append(
+            (QRegularExpression(r'\b\d+\.\d+\b'), number_format)
+        )
+        # Entero: dígito(s) que no formen parte de un real
+        self.highlighting_rules.append(
+            (QRegularExpression(r'\b\d+\b'), number_format)
+        )
+
+        # 4. Operadores y Símbolos
         operator_format = create_format(COLOR_OPERATOR)
+        # Compuestos
         comp_ops = [r'<=', r'>=', r'!=', r'==', r'&&', r'\|\|', r'\+\+', r'\-\-']
         for op in comp_ops:
             self.highlighting_rules.append((QRegularExpression(op), operator_format))
+        # Simples
+        simple_elements = [r'\+', r'\-', r'\*', r'/', r'%', r'\^', r'<', r'>', r'!', r'=', 
+                           r'\(', r'\)', r'\{', r'\}', r',', r';']
+        for el in simple_elements:
+            self.highlighting_rules.append((QRegularExpression(el), operator_format))
 
-        # Operadores simples y asignación (incluye el punto)
-        simple_ops = [r'\+', r'\-', r'\*', r'/', r'%', r'\^', r'<', r'>', r'!', r'=', r'\.']
-        for op in simple_ops:
-            self.highlighting_rules.append((QRegularExpression(op), operator_format))
+        # 5. ERRORES LÉXICOS (Reglas de pintura para casos inválidos)
+        error_format = create_format(COLOR_ERROR, bold=True)
+        invalid_patterns = [
+            # Caso 32.algo -> El número seguido de punto pero SIN dígitos después
+            r'\d+\.(?!\d)', 
+            # Caso .45 -> Punto seguido de números pero sin nada antes
+            r'(?<!\d)\.\d+',
+            # Caso 34.34.34 -> Un punto que aparece inmediatamente después de un número real
+            r'(?<=\d\.\d)\.',
+            # Caracteres ilegales (no permitidos en el lenguaje)
+            r'[^\s\w\+\-\*/%\^=<>!&\|\(\)\{\},;\.]'
+        ]
+        for pat in invalid_patterns:
+            self.highlighting_rules.append((QRegularExpression(pat), error_format))
 
-        # Símbolos
-        symbol_format = create_format(COLOR_SYMBOL)
-        symbols = [r'\(', r'\)', r'\{', r'\}', r',', r';']
-        for sym in symbols:
-            self.highlighting_rules.append((QRegularExpression(sym), symbol_format))
-
-        # Comentarios de una línea
+        # 6. Cadenas y Comentarios
+        string_format = create_format(COLOR_STRING)
+        self.highlighting_rules.append((QRegularExpression(r'"[^"]*"'), string_format))
+        
         comment_format = create_format(COLOR_COMMENT)
-        self.highlighting_rules.append(
-            (QRegularExpression(r'//[^\n]*'), comment_format)
-        )
+        self.highlighting_rules.append((QRegularExpression(r'//[^\n]*'), comment_format))
 
-        # Comentarios multilínea (estado especial)
         self.multiLineCommentFormat = comment_format
         self.commentStartExpression = QRegularExpression(r'/\*')
         self.commentEndExpression = QRegularExpression(r'\*/')
 
     def highlightBlock(self, text):
-        # --- NUEVO: Formato por defecto para todo el bloque (gris claro) ---
+        # Formato base
         default_fmt = QTextCharFormat()
         default_fmt.setForeground(QColor("#D4D4D4"))
         self.setFormat(0, len(text), default_fmt)
 
-        # Aplicar reglas estándar (sobrescriben el formato por defecto)
+        # Aplicar reglas en orden
         for pattern, fmt in self.highlighting_rules:
             expression = QRegularExpression(pattern)
             it = expression.globalMatch(text)
@@ -106,7 +102,7 @@ class CustomHighlighter(QSyntaxHighlighter):
                 match = it.next()
                 self.setFormat(match.capturedStart(), match.capturedLength(), fmt)
 
-        # Manejo de comentarios multilínea
+        # Lógica de comentarios multilínea
         self.setCurrentBlockState(0)
         startIndex = 0
         if self.previousBlockState() != 1:

@@ -8,7 +8,7 @@ class CompilerManager:
         self.ui = ui
         self.terminal = terminal
         
-        # Mapa de colores para la tabla (mismos que en highlighter)
+        # Mapa de colores para la tabla
         self.type_colors = {
             "Palabra Reservada": "#C586C0",
             "Delimitador": "#D4D4D4",
@@ -88,12 +88,10 @@ class CompilerManager:
         col_kind = QTableWidgetItem(kind)
         col_line = QTableWidgetItem(str(line))
         
-        # Centrar texto
         for item in [col_token, col_kind, col_line]:
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Aplicar color al tipo según el diccionario
-        color_hex = self.type_colors.get(kind, "#D4D4D4")  # gris por defecto
+        color_hex = self.type_colors.get(kind, "#D4D4D4")
         col_kind.setForeground(QColor(color_hex))
         
         self.lex_table.setItem(row, 0, col_token)
@@ -101,7 +99,6 @@ class CompilerManager:
         self.lex_table.setItem(row, 2, col_line)
 
     def run_lexical_analysis(self, code):
-        """Analizador léxico carácter por carácter con eliminación de espacios y saltos."""
         self.lex_table.setRowCount(0)
         self.terminal.clear_problems()
         self.toggle_panel(0, "LÉXICO")
@@ -114,90 +111,87 @@ class CompilerManager:
         while i < n:
             ch = code[i]
 
-            # 1. Ignorar espacios, tabs, saltos (excepto para contar líneas)
+            # 1. Ignorar espacios
             if ch.isspace():
-                if ch == '\n':
-                    line_num += 1
+                if ch == '\n': line_num += 1
                 i += 1
                 continue
 
-            # 2. Comentarios de línea //
-            if ch == '/' and i+1 < n and code[i+1] == '/':
-                i += 2
-                while i < n and code[i] != '\n':
-                    i += 1
-                continue
+            # 2 y 3. Comentarios
+            if ch == '/' and i+1 < n:
+                if code[i+1] == '/':
+                    i += 2
+                    while i < n and code[i] != '\n': i += 1
+                    continue
+                if code[i+1] == '*':
+                    i += 2
+                    while i+1 < n and not (code[i] == '*' and code[i+1] == '/'):
+                        if code[i] == '\n': line_num += 1
+                        i += 1
+                    i += 2
+                    continue
 
-            # 3. Comentarios multilínea /* ... */
-            if ch == '/' and i+1 < n and code[i+1] == '*':
-                i += 2
-                while i+1 < n and not (code[i] == '*' and code[i+1] == '/'):
-                    if code[i] == '\n':
-                        line_num += 1
-                    i += 1
-                i += 2  # saltar */
-                continue
-
-            # 4. Operadores compuestos con posible espacio/salto entre ellos
-            compound_ops = {
-                '=': '=', '+': '+', '-': '-', '<': '=', '>': '=', '!': '=', '&': '&', '|': '|'
-            }
+            # 4. Operadores compuestos
+            compound_ops = {'=': '=', '+': '+', '-': '-', '<': '=', '>': '=', '!': '=', '&': '&', '|': '|'}
             if ch in compound_ops:
                 second = compound_ops[ch]
                 j = i + 1
                 temp_line = line_num
-                # Saltar espacios en blanco entre los dos caracteres
                 while j < n and code[j].isspace():
-                    if code[j] == '\n':
-                        temp_line += 1
+                    if code[j] == '\n': temp_line += 1
                     j += 1
                 if j < n and code[j] == second:
                     lexeme = ch + second
                     self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
-                    i = j + 1
-                    line_num = temp_line
+                    i, line_num = j + 1, temp_line
                     continue
 
-            # 5. Identificadores y palabras reservadas
+            # 5. Identificadores y Palabras Reservadas
             if ch.isalpha() or ch == '_':
                 start = i
                 while i < n and (code[i].isalnum() or code[i] == '_'):
                     i += 1
                 lexeme = code[start:i]
-                kind = self.get_token_kind(lexeme)
-                self.add_to_table(lexeme, kind, line_num)
+                self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
                 continue
 
-            # 6. Números (enteros o reales) y errores como "34.algo"
+            # 6. LÓGICA CORREGIDA PARA NÚMEROS (No-codiciosa)
             if ch.isdigit():
                 start = i
-                dot_count = 0
-                error_flag = False
-                while i < n and not code[i].isspace() and code[i] not in symbols:
-                    if code[i] == '.':
-                        dot_count += 1
-                    elif code[i].isalpha():
-                        error_flag = True
+                lexeme = ""
+                # Leer parte entera
+                while i < n and code[i].isdigit():
+                    lexeme += code[i]
                     i += 1
-                lexeme = code[start:i]
-                if error_flag or dot_count > 1 or lexeme.endswith('.'):
-                    # Error léxico -> no se agrega a tabla, solo a terminal
-                    self.terminal.log_problem("Léxico", f"Token inválido: '{lexeme}' en línea {line_num}")
+                
+                # ¿Hay un punto?
+                if i < n and code[i] == '.':
+                    # Revisar si lo que sigue es un dígito para que sea Real válido
+                    if i + 1 < n and code[i+1].isdigit():
+                        lexeme += "."
+                        i += 1
+                        while i < n and code[i].isdigit():
+                            lexeme += code[i]
+                            i += 1
+                        self.add_to_table(lexeme, "Número Real", line_num)
+                    else:
+                        # Caso 32.algo -> "32." es error, "algo" se procesará en la siguiente iteración
+                        lexeme += "."
+                        i += 1
+                        self.terminal.log_problem("Léxico", f"Token inválido: '{lexeme}' en línea {line_num}")
                 else:
-                    kind = self.get_token_kind(lexeme)
-                    self.add_to_table(lexeme, kind, line_num)
+                    self.add_to_table(lexeme, "Número Entero", line_num)
                 continue
 
             # 7. Símbolos simples
             if ch in symbols:
-                kind = self.get_token_kind(ch)
-                self.add_to_table(ch, kind, line_num)
+                self.add_to_table(ch, self.get_token_kind(ch), line_num)
                 i += 1
                 continue
 
-            # 8. Punto aislado (operador miembro, ej. en algunos lenguajes)
+            # 8. Punto aislado (Caso 34.34. -> el segundo punto entra aquí)
             if ch == '.':
-                self.add_to_table('.', 'Símbolo', line_num)  # o "Operador"
+                self.terminal.log_problem("Léxico", f"Carácter no válido: '.' en línea {line_num}")
                 i += 1
                 continue
 
@@ -205,37 +199,21 @@ class CompilerManager:
             self.terminal.log_problem("Léxico", f"Carácter no válido: '{ch}' en línea {line_num}")
             i += 1
 
-        # Forzar refresco visual de la tabla
         self.lex_table.viewport().update()
 
     def get_token_kind(self, token):
         keywords = {"if", "else", "end", "do", "while", "switch", "case",
-                    "int", "float", "main", "cin", "cout", "return", "then", "for"}
-        ops_arit = {"+", "-", "*", "/", "%", "^", "++", "--"}
-        ops_rel = {"<", ">", "<=", ">=", "==", "!="}
-        ops_log = {"&&", "||", "!"}
-        simbolos = {"(", ")", "{", "}", ","}
+                    "int", "float", "main", "cin", "cout", "return", "then", "for", "real"}
         
-        if token in keywords:
-            return "Palabra Reservada"
-        if token == ";":
-            return "Delimitador"
-        if token == "=":
-            return "Asignación"
-        if token in ops_arit:
-            return "Op. Algebraico"
-        if token in ops_rel:
-            return "Op. Relacional"
-        if token in ops_log:
-            return "Op. Lógico"
-        if token in simbolos:
-            return "Símbolo"
-        if token == ".":
-            return "Símbolo"   # O "Operador"
-        if re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_]*', token):
-            return "Identificador"
-        if re.fullmatch(r'\d+', token):
-            return "Número Entero"
-        if re.fullmatch(r'\d+\.\d+', token):
-            return "Número Real"
+        if token in keywords: return "Palabra Reservada"
+        if token == ";": return "Delimitador"
+        if token == "=": return "Asignación"
+        if token in {"+", "-", "*", "/", "%", "^", "++", "--"}: return "Op. Algebraico"
+        if token in {"<", ">", "<=", ">=", "==", "!="}: return "Op. Relacional"
+        if token in {"&&", "||", "!"}: return "Op. Lógico"
+        if token in {"(", ")", "{", "}", ","}: return "Símbolo"
+        
+        if re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_]*', token): return "Identificador"
+        if re.fullmatch(r'\d+', token): return "Número Entero"
+        if re.fullmatch(r'\d+\.\d+', token): return "Número Real"
         return "Error"
