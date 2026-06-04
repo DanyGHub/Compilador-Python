@@ -419,13 +419,24 @@ class Parser:
             return ASTNode("Número", t['lexeme'])
         elif token['kind'] == 'Identificador':
             t = self.consume()
-            return ASTNode("Identificador", t['lexeme'])
+            ident_node = ASTNode("Identificador", t['lexeme'])
+            
+            # --- EVALUACIÓN DE OPERADORES SUFIJOS (a++ / c--) ---
+            next_token = self.peek()
+            if next_token and next_token['lexeme'] in ['++', '--']:
+                op = self.consume()
+                op_node = ASTNode("Operador Unario", op['lexeme'])
+                op_node.add(ident_node)
+                return op_node
+            
+            return ident_node
         elif token['lexeme'] == '!':
             self.consume()
             node = ASTNode("Negación Lógica", "!")
             node.add(self.parse_factor())
             return node
         elif token['lexeme'] in ['++', '--']:
+            # --- EVALUACIÓN DE OPERADORES PREFIJOS (++a / --c) ---
             op = self.consume()
             ident = self.expect(expected_kind='Identificador')
             node = ASTNode("Operador Unario", op['lexeme'])
