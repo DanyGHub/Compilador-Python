@@ -25,12 +25,16 @@ class ASTNode:
 # ==========================================
 class Parser:
     def __init__(self, tokens, terminal):
-        # Filtramos tokens de error para no romper la gramática
         self.tokens = [t for t in tokens if t['kind'] != 'Error']
         self.pos = 0
         self.terminal = terminal
-        # Tokens de sincronización para recuperación de errores (Panic Mode)
-        self.sync_tokens = {';', '}', 'end'}
+        
+        # Tokens de sincronización (Estilo Yacc/Bison) para evitar saltar bloques enteros
+        self.sync_tokens = {
+            ';', '}', '{', 'end', 'then', 'else', 
+            'if', 'while', 'do', 'for', 'switch', 
+            'int', 'float', 'real', 'main', 'return', 'cin', 'cout'
+        }
 
     def peek(self):
         if self.pos < len(self.tokens):
@@ -55,7 +59,6 @@ class Parser:
         if token:
             return token
         
-        # Generar error
         curr = self.peek()
         line = curr['line'] if curr else "EOF"
         found = curr['lexeme'] if curr else "Fin de archivo"
@@ -66,13 +69,11 @@ class Parser:
         return None
 
     def recover(self):
-        """Panic Mode: Avanza hasta encontrar un punto seguro para reanudar el análisis."""
+        """Panic Mode: Avanza hasta encontrar un punto seguro (sync token)."""
         while self.pos < len(self.tokens):
             token = self.peek()
             if token['lexeme'] in self.sync_tokens:
-                if token['lexeme'] == ';':
-                    self.pos += 1 # Consumir el punto y coma para salir del error
-                break
+                break # Se detiene EXACTAMENTE en el sync token, sin consumirlo
             self.pos += 1
 
     # --- REGLAS DE LA GRAMÁTICA ---
@@ -80,10 +81,10 @@ class Parser:
         root = ASTNode("Programa")
         while self.pos < len(self.tokens):
             stmt = self.parse_statement()
-            if stmt:
+            if stmt and stmt.name != "Sentencia Vacía":
                 root.add(stmt)
-            else:
-                # Si falla por completo, forzamos el avance para no crear bucles infinitos
+            elif not stmt:
+                # Si falló completamente y recover() no ayudó, forzamos el avance
                 self.pos += 1 
         return root
 
@@ -91,114 +92,195 @@ class Parser:
         token = self.peek()
         if not token: return None
 
-        if token['lexeme'] in ['int', 'float', 'real']:
+        lexeme = token['lexeme']
+        kind = token['kind']
+
+        if lexeme == ';':
+            self.consume()
+            return ASTNode("Sentencia Vacía")
+        elif lexeme == 'main':
+            return self.parse_main()
+        elif lexeme in ['int', 'float', 'real']:
             return self.parse_declaration()
-        elif token['lexeme'] == 'if':
+        elif lexeme == 'if':
             return self.parse_if()
-        elif token['lexeme'] == 'while':
+        elif lexeme == 'while':
             return self.parse_while()
-        elif token['lexeme'] == 'do':
+        elif lexeme == 'do':
             return self.parse_do_while()
-        elif token['lexeme'] == 'for':
+        elif lexeme == 'for':
             return self.parse_for()
-        elif token['lexeme'] == 'switch':
+        elif lexeme == 'switch':
             return self.parse_switch()
-        elif token['lexeme'] in ['cin', 'cout']:
+        elif lexeme in ['cin', 'cout']:
             return self.parse_io()
-        elif token['lexeme'] == 'return':
+        elif lexeme == 'return':
             return self.parse_return()
-        elif token['lexeme'] == '{':
+        elif lexeme == '{':
             return self.parse_block()
-        elif token['kind'] == 'Identificador':
+        elif kind == 'Identificador' or lexeme in ['++', '--']:
             return self.parse_assignment_or_expr()
         else:
-            self.terminal.log_problem("Sintáctico", f"Sentencia no válida que inicia con '{token['lexeme']}' en línea {token['line']}")
+            self.terminal.log_problem("Sintáctico", f"Sentencia no válida iniciando con '{lexeme}' en línea {token['line']}")
+            self.pos += 1 
             self.recover()
             return None
+
+    def parse_main(self):
+        node = ASTNode("Función Principal", "main")
+        self.consume(expected_lexeme='main')
+        
+        if self.peek() and self.peek()['lexeme'] == '{':
+            node.add(self.parse_block())
+        else:
+            while self.pos < len(self.tokens):
+                stmt = self.parse_statement()
+                if stmt and stmt.name != "Sentencia Vacía":
+                    node.add(stmt)
+        return node
 
     def parse_block(self):
         node = ASTNode("Bloque")
         if self.consume(expected_lexeme='{'):
             while self.peek() and self.peek()['lexeme'] != '}':
                 stmt = self.parse_statement()
-                if stmt: node.add(stmt)
+                if stmt and stmt.name != "Sentencia Vacía": node.add(stmt)
             self.expect(expected_lexeme='}')
         return node
 
     def parse_declaration(self):
         node = ASTNode("Declaración")
-        tipo = self.consume() # int, float o real
+        tipo = self.consume() 
         node.add(ASTNode("Tipo", tipo['lexeme']))
         
-        ident = self.expect(expected_kind='Identificador')
-        if ident:
-            node.add(ASTNode("Identificador", ident['lexeme']))
+        while True:
+            ident = self.expect(expected_kind='Identificador')
+            if ident:
+                var_node = ASTNode("Variable", ident['lexeme'])
+                if self.consume(expected_lexeme='='):
+                    asig_node = ASTNode("Inicialización")
+                    expr = self.parse_expression()
+                    if expr: asig_node.add(expr)
+                    var_node.add(asig_node)
+                node.add(var_node)
             
-        if self.consume(expected_lexeme='='):
-            asig_node = ASTNode("Asignación")
-            expr = self.parse_expression()
-            if expr: asig_node.add(expr)
-            node.add(asig_node)
-            
+            if self.peek() and self.peek()['lexeme'] == ',':
+                self.consume(expected_lexeme=',')
+            else:
+                break
+                
         self.expect(expected_lexeme=';')
         return node
 
     def parse_assignment_or_expr(self):
-        node = ASTNode("Instrucción")
-        ident = self.consume(expected_kind='Identificador')
+        node = ASTNode("Instrucción(es)")
         
-        if self.consume(expected_lexeme='='):
-            asig_node = ASTNode("Asignación", ident['lexeme'])
-            expr = self.parse_expression()
-            if expr: asig_node.add(expr)
-            node.add(asig_node)
-        else:
-            # Podría ser una llamada a función o solo una expresión (retrocedemos pos para parsear la expr)
-            self.pos -= 1
-            node.add(self.parse_expression())
-            
+        while True:
+            if self.peek() and self.peek()['kind'] == 'Identificador':
+                start_pos = self.pos
+                ident = self.consume(expected_kind='Identificador')
+                
+                if self.consume(expected_lexeme='='):
+                    asig_node = ASTNode("Asignación", ident['lexeme'])
+                    expr = self.parse_expression()
+                    if expr: asig_node.add(expr)
+                    node.add(asig_node)
+                else:
+                    self.pos = start_pos
+                    expr = self.parse_expression()
+                    if expr: node.add(expr)
+            else:
+                expr = self.parse_expression()
+                if expr: node.add(expr)
+                
+            if self.peek() and self.peek()['lexeme'] == ',':
+                self.consume(expected_lexeme=',')
+            else:
+                break
+                
         self.expect(expected_lexeme=';')
+        if len(node.children) == 1:
+            return node.children[0]
         return node
 
     def parse_if(self):
         node = ASTNode("If")
         self.consume(expected_lexeme='if')
         self.expect(expected_lexeme='(')
-        node.add(self.parse_expression())
+        expr = self.parse_expression()
+        if expr: node.add(expr)
         self.expect(expected_lexeme=')')
         
-        # Soporte para "then" opcional
-        self.consume(expected_lexeme='then')
-        
-        body = self.parse_statement()
-        if body: node.add(ASTNode("Cuerpo True").add(body))
-        
-        if self.consume(expected_lexeme='else'):
-            else_body = self.parse_statement()
-            if else_body: node.add(ASTNode("Cuerpo False").add(else_body))
+        use_then_end = False
+        if self.peek() and self.peek()['lexeme'] == 'then':
+            self.consume()
+            use_then_end = True
             
-        self.consume(expected_lexeme='end') # "end" opcional según tu léxico
+        true_body = ASTNode("Cuerpo True")
+        
+        if use_then_end:
+            while self.peek() and self.peek()['lexeme'] not in ['else', 'end', '}']:
+                stmt = self.parse_statement()
+                if stmt and stmt.name != "Sentencia Vacía": true_body.add(stmt)
+        else:
+            stmt = self.parse_statement()
+            if stmt and stmt.name != "Sentencia Vacía": true_body.add(stmt)
+                
+        if true_body.children:
+            node.add(true_body)
+            
+        if self.peek() and self.peek()['lexeme'] == 'else':
+            self.consume()
+            false_body = ASTNode("Cuerpo False")
+            if use_then_end:
+                while self.peek() and self.peek()['lexeme'] not in ['end', '}']:
+                    stmt = self.parse_statement()
+                    if stmt and stmt.name != "Sentencia Vacía": false_body.add(stmt)
+            else:
+                stmt = self.parse_statement()
+                if stmt and stmt.name != "Sentencia Vacía": false_body.add(stmt)
+                    
+            if false_body.children:
+                node.add(false_body)
+                
+        if use_then_end:
+            self.expect(expected_lexeme='end')
+            if self.peek() and self.peek()['lexeme'] == ';': # Opcional punto y coma tras end
+                self.consume()
+                
         return node
 
     def parse_while(self):
         node = ASTNode("While")
         self.consume(expected_lexeme='while')
         self.expect(expected_lexeme='(')
-        node.add(self.parse_expression())
+        expr = self.parse_expression()
+        if expr: node.add(expr)
         self.expect(expected_lexeme=')')
+        
         body = self.parse_statement()
-        if body: node.add(ASTNode("Cuerpo").add(body))
+        if body and body.name != "Sentencia Vacía": 
+            node.add(ASTNode("Cuerpo").add(body))
         return node
 
     def parse_do_while(self):
         node = ASTNode("Do-While")
         self.consume(expected_lexeme='do')
-        body = self.parse_statement()
-        if body: node.add(ASTNode("Cuerpo").add(body))
         
+        body = ASTNode("Cuerpo")
+        if self.peek() and self.peek()['lexeme'] == '{':
+            body.add(self.parse_block())
+        else:
+            while self.peek() and self.peek()['lexeme'] != 'while':
+                stmt = self.parse_statement()
+                if stmt and stmt.name != "Sentencia Vacía": body.add(stmt)
+                    
+        if body.children: node.add(body)
+            
         self.expect(expected_lexeme='while')
         self.expect(expected_lexeme='(')
-        node.add(self.parse_expression())
+        expr = self.parse_expression()
+        if expr: node.add(expr)
         self.expect(expected_lexeme=')')
         self.expect(expected_lexeme=';')
         return node
@@ -208,45 +290,42 @@ class Parser:
         self.consume(expected_lexeme='for')
         self.expect(expected_lexeme='(')
         
-        # Inicialización
-        init = self.parse_statement() # parse_statement asume que termina en ';'
-        if init: node.add(ASTNode("Inicialización").add(init))
+        init = self.parse_statement()
+        if init and init.name != "Sentencia Vacía": node.add(ASTNode("Inicialización").add(init))
         
-        # Condición
         cond = self.parse_expression()
         if cond: node.add(ASTNode("Condición").add(cond))
         self.expect(expected_lexeme=';')
         
-        # Incremento
         inc = self.parse_expression()
         if inc: node.add(ASTNode("Incremento").add(inc))
         self.expect(expected_lexeme=')')
         
         body = self.parse_statement()
-        if body: node.add(ASTNode("Cuerpo").add(body))
+        if body and body.name != "Sentencia Vacía": node.add(ASTNode("Cuerpo").add(body))
         return node
 
     def parse_switch(self):
         node = ASTNode("Switch")
         self.consume(expected_lexeme='switch')
         self.expect(expected_lexeme='(')
-        node.add(self.parse_expression())
+        expr = self.parse_expression()
+        if expr: node.add(expr)
         self.expect(expected_lexeme=')')
         self.expect(expected_lexeme='{')
         
         while self.peek() and self.peek()['lexeme'] == 'case':
             case_node = ASTNode("Case")
             self.consume(expected_lexeme='case')
-            val = self.consume() # Puede ser número o identificador
+            val = self.consume() 
             if val: case_node.value = val['lexeme']
             self.expect(expected_lexeme=':')
             
-            # Agrupar statements del case
             statements = ASTNode("Instrucciones")
             while self.peek() and self.peek()['lexeme'] not in ['case', '}']:
                 stmt = self.parse_statement()
-                if stmt: statements.add(stmt)
-            case_node.add(statements)
+                if stmt and stmt.name != "Sentencia Vacía": statements.add(stmt)
+            if statements.children: case_node.add(statements)
             node.add(case_node)
             
         self.expect(expected_lexeme='}')
@@ -284,8 +363,13 @@ class Parser:
         while self.peek() and self.peek()['lexeme'] in ['&&', '||']:
             op = self.consume()
             new_node = ASTNode("Op Lógico", op['lexeme'])
-            new_node.add(node)
-            new_node.add(self.parse_relational())
+            if node: new_node.add(node)
+            
+            right = self.parse_relational()
+            if right: 
+                new_node.add(right)
+            else:
+                self.terminal.log_problem("Sintáctico", f"Falta operando derecho para '{op['lexeme']}'")
             node = new_node
         return node
 
@@ -294,8 +378,9 @@ class Parser:
         while self.peek() and self.peek()['lexeme'] in ['<', '>', '<=', '>=', '==', '!=']:
             op = self.consume()
             new_node = ASTNode("Op Relacional", op['lexeme'])
-            new_node.add(node)
-            new_node.add(self.parse_algebraic())
+            if node: new_node.add(node)
+            right = self.parse_algebraic()
+            if right: new_node.add(right)
             node = new_node
         return node
 
@@ -304,8 +389,9 @@ class Parser:
         while self.peek() and self.peek()['lexeme'] in ['+', '-']:
             op = self.consume()
             new_node = ASTNode("Op Aritmético", op['lexeme'])
-            new_node.add(node)
-            new_node.add(self.parse_term())
+            if node: new_node.add(node)
+            right = self.parse_term()
+            if right: new_node.add(right)
             node = new_node
         return node
 
@@ -314,8 +400,9 @@ class Parser:
         while self.peek() and self.peek()['lexeme'] in ['*', '/', '%', '^']:
             op = self.consume()
             new_node = ASTNode("Op Multiplicativo", op['lexeme'])
-            new_node.add(node)
-            new_node.add(self.parse_factor())
+            if node: new_node.add(node)
+            right = self.parse_factor()
+            if right: new_node.add(right)
             node = new_node
         return node
 
@@ -357,7 +444,7 @@ class CompilerManager:
     def __init__(self, ui, terminal):
         self.ui = ui
         self.terminal = terminal
-        self.tokens_list = [] # Almacenará los tokens para fases posteriores
+        self.tokens_list = []
         
         self.type_colors = {
             "Palabra Reservada": "#C586C0",
@@ -400,15 +487,9 @@ class CompilerManager:
         self.sin_out = QTreeWidget()
         self.sin_out.setColumnCount(1)
         self.sin_out.setHeaderLabels(["Árbol Sintáctico Abstracto (AST)"])
-        
-        # --- LÍNEAS AÑADIDAS PARA LA BARRA DE DESPLAZAMIENTO HORIZONTAL ---
-        # Forzar a que la columna se expanda dinámicamente según el tamaño real de su contenido mas largo
         self.sin_out.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        # Desactivar el auto-estiramiento estático al ancho de la ventana
         self.sin_out.header().setStretchLastSection(False)
-        # Asegurar que la barra inferior aparezca automáticamente cuando el contenido desborde el espacio
         self.sin_out.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        # ------------------------------------------------------------------
         
         self.sin_out.setStyleSheet("""
             QTreeWidget { background-color: #1e1e1e; color: #d4d4d4; border: none; font-family: 'Segoe UI'; font-size: 11pt; }
@@ -416,19 +497,17 @@ class CompilerManager:
             QHeaderView::section { background-color: #252526; color: #d4d4d4; padding: 4px; border: 1px solid #3e3e42; }
         """)
         
-        # Otras Salidas
         self.sem_out = self._create_terminal()
         self.int_out = self._create_terminal()
         self.hash_out = self._create_terminal()
         
-        self.result_stack.addWidget(self.lex_table)  # 0
-        self.result_stack.addWidget(self.sin_out)    # 1
-        self.result_stack.addWidget(self.sem_out)    # 2
-        self.result_stack.addWidget(self.int_out)    # 3
-        self.result_stack.addWidget(self.hash_out)   # 4
+        self.result_stack.addWidget(self.lex_table)
+        self.result_stack.addWidget(self.sin_out)
+        self.result_stack.addWidget(self.sem_out)
+        self.result_stack.addWidget(self.int_out)
+        self.result_stack.addWidget(self.hash_out)
         
         layout.addWidget(self.result_stack)
-        
         self.ui.mainSplitter.insertWidget(2, self.right_panel)
         self.right_panel.setVisible(False)
 
@@ -449,9 +528,7 @@ class CompilerManager:
             self.ui.mainSplitter.setSizes([200, 400, 330, 70])
 
     def add_to_table(self, token, kind, line):
-        # Mantenemos registro en memoria para el parser
         self.tokens_list.append({"lexeme": token, "kind": kind, "line": line})
-        
         row = self.lex_table.rowCount()
         self.lex_table.insertRow(row)
         
@@ -471,7 +548,7 @@ class CompilerManager:
 
     def get_token_kind(self, token):
         keywords = {"if", "else", "end", "do", "while", "switch", "case",
-                    "int", "float", "main", "cin", "cout", "return", "then", "for", "real"}
+                    "int", "float", "real", "main", "cin", "cout", "return", "then", "for"}
         
         if token in keywords: return "Palabra Reservada"
         if token == ";": return "Delimitador"
@@ -488,7 +565,7 @@ class CompilerManager:
 
     def run_lexical_analysis(self, code):
         self.lex_table.setRowCount(0)
-        self.tokens_list = [] # Limpiar lista de tokens en cada corrida
+        self.tokens_list = []
         self.terminal.clear_problems()
         self.toggle_panel(0, "LÉXICO")
         
@@ -583,16 +660,13 @@ class CompilerManager:
     def run_syntactic_analysis(self):
         self.sin_out.clear()
         
-        # Validar si no hay tokens disponibles
         if not self.tokens_list:
-            item = QTreeWidgetItem(self.sin_out, ["No hay código válido para analizar."])
+            QTreeWidgetItem(self.sin_out, ["No hay código válido para analizar."])
             return
 
-        # Iniciamos el parser
         parser = Parser(self.tokens_list, self.terminal)
         ast_root = parser.parse()
 
-        # Función recursiva para dibujar el árbol
         def populate_tree(parent_widget, node):
             display_text = node.name
             if node.value:
@@ -600,15 +674,14 @@ class CompilerManager:
             
             item = QTreeWidgetItem(parent_widget, [display_text])
             
-            # Decorar según el tipo de nodo para darle vida al árbol
-            if node.name in ["Programa", "Bloque", "Instrucciones", "Cuerpo"]:
-                item.setForeground(0, QColor("#DCDCAA"))  # Amarillo suave
-            elif node.name in ["If", "While", "Do-While", "For", "Switch", "Case"]:
-                item.setForeground(0, QColor("#C586C0"))  # Púrpura (Control)
+            if node.name in ["Programa", "Bloque", "Cuerpo", "Cuerpo True", "Cuerpo False"]:
+                item.setForeground(0, QColor("#DCDCAA"))
+            elif node.name in ["If", "While", "Do-While", "For", "Switch", "Case", "Función Principal"]:
+                item.setForeground(0, QColor("#C586C0"))
             elif node.name == "Declaración":
-                item.setForeground(0, QColor("#569CD6"))  # Azul
+                item.setForeground(0, QColor("#569CD6"))
             elif node.name == "Error":
-                item.setForeground(0, QColor("#F44747"))  # Rojo
+                item.setForeground(0, QColor("#F44747"))
                 
             for child in node.children:
                 populate_tree(item, child)
