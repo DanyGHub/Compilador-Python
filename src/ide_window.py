@@ -105,18 +105,44 @@ class CompilerIDE(QMainWindow):
             self.terminal.log("Análisis Léxico finalizado.")
         else:
             self.terminal.log("No hay código para analizar.")
+    
+    def run_syntactic_analysis(self):
+        code = self.editor.get_current_code()
+        if code:
+            # Forzamos la limpieza de la terminal de problemas 
+            self.terminal.clear_problems()
+            
+            # 1. Siempre se requiere correr el léxico primero silenciosamente para actualizar los tokens
+            self.compiler.run_lexical_analysis(code)
+            
+            # 2. Correr el Sintáctico y pintar el árbol
+            self.compiler.run_syntactic_analysis()
+            
+            # Si hubo errores sintácticos, la pestaña Problems se habrá abierto automáticamente
+            self.terminal.log("Análisis Sintáctico finalizado (revisa los problemas si aplica).")
+        else:
+            self.terminal.log("No hay código para analizar sintácticamente.")
 
     def connect_toolbar_actions(self):
-        # Conectar botones de la barra personalizada a las acciones del menú
         self.editor.btnNew.clicked.connect(self.ui.actionNew.trigger)
         self.editor.btnOpen.clicked.connect(self.ui.actionOpen.trigger)
         self.editor.btnOpenDir.clicked.connect(self.ui.actionOpen_Folder.trigger)
         self.editor.btnSave.clicked.connect(self.ui.actionSave.trigger)
         self.editor.btnSaveAs.clicked.connect(self.ui.actionSaveAs.trigger)
         
-        # Conectar botones de análisis
+        # Conexiones para Análisis
         self.editor.btnLex.clicked.connect(self.run_lexical_analysis)
-        self.editor.btnSin.clicked.connect(lambda: self.ui.actionSyntactic.trigger())
+        self.editor.btnSin.clicked.connect(self.run_syntactic_analysis) # <--- Cambiado aquí
+        
+        # Si tienes la acción de menú conectada en setup_connections o connect_signals, haz que apunte también:
+        if hasattr(self.ui, 'actionSyntactic'):
+            self.ui.actionSyntactic.triggered.disconnect() # Desconecta el lambda anterior si existía
+            self.ui.actionSyntactic.triggered.connect(self.run_syntactic_analysis)
+
+        # Para el botón de la barra lateral "btnSyntactic" en connect_signals:
+        if hasattr(self.ui, 'btnSyntactic'):
+             self.ui.btnSyntactic.clicked.disconnect()
+             self.ui.btnSyntactic.clicked.connect(self.run_syntactic_analysis)
 
     # --- Lógica de Archivos ---
     def on_new_file(self):

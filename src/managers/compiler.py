@@ -1,14 +1,364 @@
 import re
-from PyQt6.QtWidgets import QStackedWidget, QTextEdit, QVBoxLayout, QLabel, QFrame, QTableWidget, QTableWidgetItem, QHeaderView
+from PyQt6.QtWidgets import (QStackedWidget, QTextEdit, QVBoxLayout, QLabel, 
+                             QFrame, QTableWidget, QTableWidgetItem, QHeaderView,
+                             QTreeWidget, QTreeWidgetItem)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
 
+# ==========================================
+# ESTRUCTURAS DEL ÁRBOL SINTÁCTICO (AST)
+# ==========================================
+class ASTNode:
+    """Nodo genérico para el Árbol Sintáctico Abstracto."""
+    def __init__(self, name, value=""):
+        self.name = name
+        self.value = value
+        self.children = []
+
+    def add(self, child):
+        if child is not None:
+            self.children.append(child)
+        return self
+
+# ==========================================
+# ANALIZADOR SINTÁCTICO (DESCENSO RECURSIVO)
+# ==========================================
+class Parser:
+    def __init__(self, tokens, terminal):
+        # Filtramos tokens de error para no romper la gramática
+        self.tokens = [t for t in tokens if t['kind'] != 'Error']
+        self.pos = 0
+        self.terminal = terminal
+        # Tokens de sincronización para recuperación de errores (Panic Mode)
+        self.sync_tokens = {';', '}', 'end'}
+
+    def peek(self):
+        if self.pos < len(self.tokens):
+            return self.tokens[self.pos]
+        return None
+
+    def consume(self, expected_lexeme=None, expected_kind=None):
+        token = self.peek()
+        if not token:
+            return None
+        
+        match_lexeme = (expected_lexeme is None or token['lexeme'] == expected_lexeme)
+        match_kind = (expected_kind is None or token['kind'] == expected_kind)
+        
+        if match_lexeme and match_kind:
+            self.pos += 1
+            return token
+        return None
+
+    def expect(self, expected_lexeme=None, expected_kind=None):
+        token = self.consume(expected_lexeme, expected_kind)
+        if token:
+            return token
+        
+        # Generar error
+        curr = self.peek()
+        line = curr['line'] if curr else "EOF"
+        found = curr['lexeme'] if curr else "Fin de archivo"
+        expected = expected_lexeme if expected_lexeme else expected_kind
+        
+        self.terminal.log_problem("Sintáctico", f"Se esperaba '{expected}' pero se encontró '{found}' en línea {line}")
+        self.recover()
+        return None
+
+    def recover(self):
+        """Panic Mode: Avanza hasta encontrar un punto seguro para reanudar el análisis."""
+        while self.pos < len(self.tokens):
+            token = self.peek()
+            if token['lexeme'] in self.sync_tokens:
+                if token['lexeme'] == ';':
+                    self.pos += 1 # Consumir el punto y coma para salir del error
+                break
+            self.pos += 1
+
+    # --- REGLAS DE LA GRAMÁTICA ---
+    def parse(self):
+        root = ASTNode("Programa")
+        while self.pos < len(self.tokens):
+            stmt = self.parse_statement()
+            if stmt:
+                root.add(stmt)
+            else:
+                # Si falla por completo, forzamos el avance para no crear bucles infinitos
+                self.pos += 1 
+        return root
+
+    def parse_statement(self):
+        token = self.peek()
+        if not token: return None
+
+        if token['lexeme'] in ['int', 'float', 'real']:
+            return self.parse_declaration()
+        elif token['lexeme'] == 'if':
+            return self.parse_if()
+        elif token['lexeme'] == 'while':
+            return self.parse_while()
+        elif token['lexeme'] == 'do':
+            return self.parse_do_while()
+        elif token['lexeme'] == 'for':
+            return self.parse_for()
+        elif token['lexeme'] == 'switch':
+            return self.parse_switch()
+        elif token['lexeme'] in ['cin', 'cout']:
+            return self.parse_io()
+        elif token['lexeme'] == 'return':
+            return self.parse_return()
+        elif token['lexeme'] == '{':
+            return self.parse_block()
+        elif token['kind'] == 'Identificador':
+            return self.parse_assignment_or_expr()
+        else:
+            self.terminal.log_problem("Sintáctico", f"Sentencia no válida que inicia con '{token['lexeme']}' en línea {token['line']}")
+            self.recover()
+            return None
+
+    def parse_block(self):
+        node = ASTNode("Bloque")
+        if self.consume(expected_lexeme='{'):
+            while self.peek() and self.peek()['lexeme'] != '}':
+                stmt = self.parse_statement()
+                if stmt: node.add(stmt)
+            self.expect(expected_lexeme='}')
+        return node
+
+    def parse_declaration(self):
+        node = ASTNode("Declaración")
+        tipo = self.consume() # int, float o real
+        node.add(ASTNode("Tipo", tipo['lexeme']))
+        
+        ident = self.expect(expected_kind='Identificador')
+        if ident:
+            node.add(ASTNode("Identificador", ident['lexeme']))
+            
+        if self.consume(expected_lexeme='='):
+            asig_node = ASTNode("Asignación")
+            expr = self.parse_expression()
+            if expr: asig_node.add(expr)
+            node.add(asig_node)
+            
+        self.expect(expected_lexeme=';')
+        return node
+
+    def parse_assignment_or_expr(self):
+        node = ASTNode("Instrucción")
+        ident = self.consume(expected_kind='Identificador')
+        
+        if self.consume(expected_lexeme='='):
+            asig_node = ASTNode("Asignación", ident['lexeme'])
+            expr = self.parse_expression()
+            if expr: asig_node.add(expr)
+            node.add(asig_node)
+        else:
+            # Podría ser una llamada a función o solo una expresión (retrocedemos pos para parsear la expr)
+            self.pos -= 1
+            node.add(self.parse_expression())
+            
+        self.expect(expected_lexeme=';')
+        return node
+
+    def parse_if(self):
+        node = ASTNode("If")
+        self.consume(expected_lexeme='if')
+        self.expect(expected_lexeme='(')
+        node.add(self.parse_expression())
+        self.expect(expected_lexeme=')')
+        
+        # Soporte para "then" opcional
+        self.consume(expected_lexeme='then')
+        
+        body = self.parse_statement()
+        if body: node.add(ASTNode("Cuerpo True").add(body))
+        
+        if self.consume(expected_lexeme='else'):
+            else_body = self.parse_statement()
+            if else_body: node.add(ASTNode("Cuerpo False").add(else_body))
+            
+        self.consume(expected_lexeme='end') # "end" opcional según tu léxico
+        return node
+
+    def parse_while(self):
+        node = ASTNode("While")
+        self.consume(expected_lexeme='while')
+        self.expect(expected_lexeme='(')
+        node.add(self.parse_expression())
+        self.expect(expected_lexeme=')')
+        body = self.parse_statement()
+        if body: node.add(ASTNode("Cuerpo").add(body))
+        return node
+
+    def parse_do_while(self):
+        node = ASTNode("Do-While")
+        self.consume(expected_lexeme='do')
+        body = self.parse_statement()
+        if body: node.add(ASTNode("Cuerpo").add(body))
+        
+        self.expect(expected_lexeme='while')
+        self.expect(expected_lexeme='(')
+        node.add(self.parse_expression())
+        self.expect(expected_lexeme=')')
+        self.expect(expected_lexeme=';')
+        return node
+
+    def parse_for(self):
+        node = ASTNode("For")
+        self.consume(expected_lexeme='for')
+        self.expect(expected_lexeme='(')
+        
+        # Inicialización
+        init = self.parse_statement() # parse_statement asume que termina en ';'
+        if init: node.add(ASTNode("Inicialización").add(init))
+        
+        # Condición
+        cond = self.parse_expression()
+        if cond: node.add(ASTNode("Condición").add(cond))
+        self.expect(expected_lexeme=';')
+        
+        # Incremento
+        inc = self.parse_expression()
+        if inc: node.add(ASTNode("Incremento").add(inc))
+        self.expect(expected_lexeme=')')
+        
+        body = self.parse_statement()
+        if body: node.add(ASTNode("Cuerpo").add(body))
+        return node
+
+    def parse_switch(self):
+        node = ASTNode("Switch")
+        self.consume(expected_lexeme='switch')
+        self.expect(expected_lexeme='(')
+        node.add(self.parse_expression())
+        self.expect(expected_lexeme=')')
+        self.expect(expected_lexeme='{')
+        
+        while self.peek() and self.peek()['lexeme'] == 'case':
+            case_node = ASTNode("Case")
+            self.consume(expected_lexeme='case')
+            val = self.consume() # Puede ser número o identificador
+            if val: case_node.value = val['lexeme']
+            self.expect(expected_lexeme=':')
+            
+            # Agrupar statements del case
+            statements = ASTNode("Instrucciones")
+            while self.peek() and self.peek()['lexeme'] not in ['case', '}']:
+                stmt = self.parse_statement()
+                if stmt: statements.add(stmt)
+            case_node.add(statements)
+            node.add(case_node)
+            
+        self.expect(expected_lexeme='}')
+        return node
+
+    def parse_io(self):
+        token = self.consume()
+        node = ASTNode("Entrada" if token['lexeme'] == 'cin' else "Salida")
+        if token['lexeme'] == 'cin':
+            self.expect(expected_lexeme='>')
+            self.expect(expected_lexeme='>')
+        else:
+            self.expect(expected_lexeme='<')
+            self.expect(expected_lexeme='<')
+            
+        expr = self.parse_expression()
+        if expr: node.add(expr)
+        self.expect(expected_lexeme=';')
+        return node
+
+    def parse_return(self):
+        node = ASTNode("Return")
+        self.consume(expected_lexeme='return')
+        expr = self.parse_expression()
+        if expr: node.add(expr)
+        self.expect(expected_lexeme=';')
+        return node
+
+    # --- EXPRESIONES Y PRECEDENCIA ---
+    def parse_expression(self):
+        return self.parse_logical()
+
+    def parse_logical(self):
+        node = self.parse_relational()
+        while self.peek() and self.peek()['lexeme'] in ['&&', '||']:
+            op = self.consume()
+            new_node = ASTNode("Op Lógico", op['lexeme'])
+            new_node.add(node)
+            new_node.add(self.parse_relational())
+            node = new_node
+        return node
+
+    def parse_relational(self):
+        node = self.parse_algebraic()
+        while self.peek() and self.peek()['lexeme'] in ['<', '>', '<=', '>=', '==', '!=']:
+            op = self.consume()
+            new_node = ASTNode("Op Relacional", op['lexeme'])
+            new_node.add(node)
+            new_node.add(self.parse_algebraic())
+            node = new_node
+        return node
+
+    def parse_algebraic(self):
+        node = self.parse_term()
+        while self.peek() and self.peek()['lexeme'] in ['+', '-']:
+            op = self.consume()
+            new_node = ASTNode("Op Aritmético", op['lexeme'])
+            new_node.add(node)
+            new_node.add(self.parse_term())
+            node = new_node
+        return node
+
+    def parse_term(self):
+        node = self.parse_factor()
+        while self.peek() and self.peek()['lexeme'] in ['*', '/', '%', '^']:
+            op = self.consume()
+            new_node = ASTNode("Op Multiplicativo", op['lexeme'])
+            new_node.add(node)
+            new_node.add(self.parse_factor())
+            node = new_node
+        return node
+
+    def parse_factor(self):
+        token = self.peek()
+        if not token: return None
+        
+        if self.consume(expected_lexeme='('):
+            node = self.parse_expression()
+            self.expect(expected_lexeme=')')
+            return node
+        elif token['kind'] in ['Número Entero', 'Número Real']:
+            t = self.consume()
+            return ASTNode("Número", t['lexeme'])
+        elif token['kind'] == 'Identificador':
+            t = self.consume()
+            return ASTNode("Identificador", t['lexeme'])
+        elif token['lexeme'] == '!':
+            self.consume()
+            node = ASTNode("Negación Lógica", "!")
+            node.add(self.parse_factor())
+            return node
+        elif token['lexeme'] in ['++', '--']:
+            op = self.consume()
+            ident = self.expect(expected_kind='Identificador')
+            node = ASTNode("Operador Unario", op['lexeme'])
+            if ident: node.add(ASTNode("Identificador", ident['lexeme']))
+            return node
+        else:
+            self.terminal.log_problem("Sintáctico", f"Expresión inválida en '{token['lexeme']}' (línea {token['line']})")
+            self.recover()
+            return None
+
+
+# ==========================================
+# GESTOR DEL COMPILADOR UI
+# ==========================================
 class CompilerManager:
     def __init__(self, ui, terminal):
         self.ui = ui
         self.terminal = terminal
+        self.tokens_list = [] # Almacenará los tokens para fases posteriores
         
-        # Mapa de colores para la tabla
         self.type_colors = {
             "Palabra Reservada": "#C586C0",
             "Delimitador": "#D4D4D4",
@@ -23,7 +373,6 @@ class CompilerManager:
             "Error": "#F44747"
         }
         
-        # Panel lateral de resultados
         self.right_panel = QFrame()
         self.right_panel.setObjectName("rightAnalysisPanel")
         self.right_panel.setFixedWidth(400)
@@ -39,7 +388,7 @@ class CompilerManager:
         
         self.result_stack = QStackedWidget()
         
-        # Tabla Léxica
+        # 0. Tabla Léxica
         self.lex_table = QTableWidget()
         self.lex_table.setColumnCount(3)
         self.lex_table.setHorizontalHeaderLabels(["Token", "Tipo", "Línea"])
@@ -47,8 +396,27 @@ class CompilerManager:
         header = self.lex_table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         
-        # Salidas adicionales
-        self.sin_out = self._create_terminal()
+        # 1. Salida Sintáctica (Árbol AST)
+        self.sin_out = QTreeWidget()
+        self.sin_out.setColumnCount(1)
+        self.sin_out.setHeaderLabels(["Árbol Sintáctico Abstracto (AST)"])
+        
+        # --- LÍNEAS AÑADIDAS PARA LA BARRA DE DESPLAZAMIENTO HORIZONTAL ---
+        # Forzar a que la columna se expanda dinámicamente según el tamaño real de su contenido mas largo
+        self.sin_out.header().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # Desactivar el auto-estiramiento estático al ancho de la ventana
+        self.sin_out.header().setStretchLastSection(False)
+        # Asegurar que la barra inferior aparezca automáticamente cuando el contenido desborde el espacio
+        self.sin_out.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # ------------------------------------------------------------------
+        
+        self.sin_out.setStyleSheet("""
+            QTreeWidget { background-color: #1e1e1e; color: #d4d4d4; border: none; font-family: 'Segoe UI'; font-size: 11pt; }
+            QTreeWidget::item:selected { background-color: #37373d; }
+            QHeaderView::section { background-color: #252526; color: #d4d4d4; padding: 4px; border: 1px solid #3e3e42; }
+        """)
+        
+        # Otras Salidas
         self.sem_out = self._create_terminal()
         self.int_out = self._create_terminal()
         self.hash_out = self._create_terminal()
@@ -81,6 +449,9 @@ class CompilerManager:
             self.ui.mainSplitter.setSizes([200, 400, 330, 70])
 
     def add_to_table(self, token, kind, line):
+        # Mantenemos registro en memoria para el parser
+        self.tokens_list.append({"lexeme": token, "kind": kind, "line": line})
+        
         row = self.lex_table.rowCount()
         self.lex_table.insertRow(row)
         
@@ -98,109 +469,6 @@ class CompilerManager:
         self.lex_table.setItem(row, 1, col_kind)
         self.lex_table.setItem(row, 2, col_line)
 
-    def run_lexical_analysis(self, code):
-        self.lex_table.setRowCount(0)
-        self.terminal.clear_problems()
-        self.toggle_panel(0, "LÉXICO")
-        
-        i = 0
-        n = len(code)
-        line_num = 1
-        symbols = "+-*/%^=<>!&|(){},;"
-        
-        while i < n:
-            ch = code[i]
-
-            # 1. Ignorar espacios
-            if ch.isspace():
-                if ch == '\n': line_num += 1
-                i += 1
-                continue
-
-            # 2 y 3. Comentarios
-            if ch == '/' and i+1 < n:
-                if code[i+1] == '/':
-                    i += 2
-                    while i < n and code[i] != '\n': i += 1
-                    continue
-                if code[i+1] == '*':
-                    i += 2
-                    while i+1 < n and not (code[i] == '*' and code[i+1] == '/'):
-                        if code[i] == '\n': line_num += 1
-                        i += 1
-                    i += 2
-                    continue
-
-            # 4. Operadores compuestos
-            compound_ops = {'=': '=', '+': '+', '-': '-', '<': '=', '>': '=', '!': '=', '&': '&', '|': '|'}
-            if ch in compound_ops:
-                second = compound_ops[ch]
-                j = i + 1
-                temp_line = line_num
-                while j < n and code[j].isspace():
-                    if code[j] == '\n': temp_line += 1
-                    j += 1
-                if j < n and code[j] == second:
-                    lexeme = ch + second
-                    self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
-                    i, line_num = j + 1, temp_line
-                    continue
-
-            # 5. Identificadores y Palabras Reservadas
-            if ch.isalpha() or ch == '_':
-                start = i
-                while i < n and (code[i].isalnum() or code[i] == '_'):
-                    i += 1
-                lexeme = code[start:i]
-                self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
-                continue
-
-            # 6. LÓGICA CORREGIDA PARA NÚMEROS (No-codiciosa)
-            if ch.isdigit():
-                start = i
-                lexeme = ""
-                # Leer parte entera
-                while i < n and code[i].isdigit():
-                    lexeme += code[i]
-                    i += 1
-                
-                # ¿Hay un punto?
-                if i < n and code[i] == '.':
-                    # Revisar si lo que sigue es un dígito para que sea Real válido
-                    if i + 1 < n and code[i+1].isdigit():
-                        lexeme += "."
-                        i += 1
-                        while i < n and code[i].isdigit():
-                            lexeme += code[i]
-                            i += 1
-                        self.add_to_table(lexeme, "Número Real", line_num)
-                    else:
-                        # Caso 32.algo -> "32." es error, "algo" se procesará en la siguiente iteración
-                        lexeme += "."
-                        i += 1
-                        self.terminal.log_problem("Léxico", f"Token inválido: '{lexeme}' en línea {line_num}")
-                else:
-                    self.add_to_table(lexeme, "Número Entero", line_num)
-                continue
-
-            # 7. Símbolos simples
-            if ch in symbols:
-                self.add_to_table(ch, self.get_token_kind(ch), line_num)
-                i += 1
-                continue
-
-            # 8. Punto aislado (Caso 34.34. -> el segundo punto entra aquí)
-            if ch == '.':
-                self.terminal.log_problem("Léxico", f"Carácter no válido: '.' en línea {line_num}")
-                i += 1
-                continue
-
-            # 9. Carácter no reconocido
-            self.terminal.log_problem("Léxico", f"Carácter no válido: '{ch}' en línea {line_num}")
-            i += 1
-
-        self.lex_table.viewport().update()
-
     def get_token_kind(self, token):
         keywords = {"if", "else", "end", "do", "while", "switch", "case",
                     "int", "float", "main", "cin", "cout", "return", "then", "for", "real"}
@@ -217,3 +485,135 @@ class CompilerManager:
         if re.fullmatch(r'\d+', token): return "Número Entero"
         if re.fullmatch(r'\d+\.\d+', token): return "Número Real"
         return "Error"
+
+    def run_lexical_analysis(self, code):
+        self.lex_table.setRowCount(0)
+        self.tokens_list = [] # Limpiar lista de tokens en cada corrida
+        self.terminal.clear_problems()
+        self.toggle_panel(0, "LÉXICO")
+        
+        i = 0
+        n = len(code)
+        line_num = 1
+        symbols = "+-*/%^=<>!&|(){},;"
+        
+        while i < n:
+            ch = code[i]
+            if ch.isspace():
+                if ch == '\n': line_num += 1
+                i += 1
+                continue
+
+            if ch == '/' and i+1 < n:
+                if code[i+1] == '/':
+                    i += 2
+                    while i < n and code[i] != '\n': i += 1
+                    continue
+                if code[i+1] == '*':
+                    i += 2
+                    while i+1 < n and not (code[i] == '*' and code[i+1] == '/'):
+                        if code[i] == '\n': line_num += 1
+                        i += 1
+                    i += 2
+                    continue
+
+            compound_ops = {'=': '=', '+': '+', '-': '-', '<': '=', '>': '=', '!': '=', '&': '&', '|': '|'}
+            if ch in compound_ops:
+                second = compound_ops[ch]
+                j = i + 1
+                temp_line = line_num
+                while j < n and code[j].isspace():
+                    if code[j] == '\n': temp_line += 1
+                    j += 1
+                if j < n and code[j] == second:
+                    lexeme = ch + second
+                    self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
+                    i, line_num = j + 1, temp_line
+                    continue
+
+            if ch.isalpha() or ch == '_':
+                start = i
+                while i < n and (code[i].isalnum() or code[i] == '_'):
+                    i += 1
+                lexeme = code[start:i]
+                self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
+                continue
+
+            if ch.isdigit():
+                start = i
+                lexeme = ""
+                while i < n and code[i].isdigit():
+                    lexeme += code[i]
+                    i += 1
+                
+                if i < n and code[i] == '.':
+                    if i + 1 < n and code[i+1].isdigit():
+                        lexeme += "."
+                        i += 1
+                        while i < n and code[i].isdigit():
+                            lexeme += code[i]
+                            i += 1
+                        self.add_to_table(lexeme, "Número Real", line_num)
+                    else:
+                        lexeme += "."
+                        i += 1
+                        self.add_to_table(lexeme, "Error", line_num)
+                        self.terminal.log_problem("Léxico", f"Token inválido: '{lexeme}' en línea {line_num}")
+                else:
+                    self.add_to_table(lexeme, "Número Entero", line_num)
+                continue
+
+            if ch in symbols:
+                self.add_to_table(ch, self.get_token_kind(ch), line_num)
+                i += 1
+                continue
+
+            if ch == '.':
+                self.add_to_table(".", "Error", line_num)
+                self.terminal.log_problem("Léxico", f"Carácter no válido: '.' en línea {line_num}")
+                i += 1
+                continue
+
+            self.add_to_table(ch, "Error", line_num)
+            self.terminal.log_problem("Léxico", f"Carácter no válido: '{ch}' en línea {line_num}")
+            i += 1
+
+        self.lex_table.viewport().update()
+
+    def run_syntactic_analysis(self):
+        self.sin_out.clear()
+        
+        # Validar si no hay tokens disponibles
+        if not self.tokens_list:
+            item = QTreeWidgetItem(self.sin_out, ["No hay código válido para analizar."])
+            return
+
+        # Iniciamos el parser
+        parser = Parser(self.tokens_list, self.terminal)
+        ast_root = parser.parse()
+
+        # Función recursiva para dibujar el árbol
+        def populate_tree(parent_widget, node):
+            display_text = node.name
+            if node.value:
+                display_text += f": {node.value}"
+            
+            item = QTreeWidgetItem(parent_widget, [display_text])
+            
+            # Decorar según el tipo de nodo para darle vida al árbol
+            if node.name in ["Programa", "Bloque", "Instrucciones", "Cuerpo"]:
+                item.setForeground(0, QColor("#DCDCAA"))  # Amarillo suave
+            elif node.name in ["If", "While", "Do-While", "For", "Switch", "Case"]:
+                item.setForeground(0, QColor("#C586C0"))  # Púrpura (Control)
+            elif node.name == "Declaración":
+                item.setForeground(0, QColor("#569CD6"))  # Azul
+            elif node.name == "Error":
+                item.setForeground(0, QColor("#F44747"))  # Rojo
+                
+            for child in node.children:
+                populate_tree(item, child)
+            
+            item.setExpanded(True)
+
+        populate_tree(self.sin_out.invisibleRootItem(), ast_root)
+        self.toggle_panel(1, "SINTÁCTICO")
