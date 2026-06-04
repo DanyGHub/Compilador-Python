@@ -29,10 +29,10 @@ class Parser:
         self.pos = 0
         self.terminal = terminal
         
-        # Tokens de sincronización (Estilo Yacc/Bison) para evitar saltar bloques enteros
+        # Sincronización robusta: Añadimos ')' para evitar que errores en condiciones destruyan bloques if/while
         self.sync_tokens = {
-            ';', '}', '{', 'end', 'then', 'else', 
-            'if', 'while', 'do', 'for', 'switch', 
+            ';', '}', '{', 'end', 'then', 'else', ')',
+            'if', 'while', 'do', 'until', 'for', 'switch', 
             'int', 'float', 'real', 'main', 'return', 'cin', 'cout'
         }
 
@@ -73,8 +73,32 @@ class Parser:
         while self.pos < len(self.tokens):
             token = self.peek()
             if token['lexeme'] in self.sync_tokens:
-                break # Se detiene EXACTAMENTE en el sync token, sin consumirlo
+                break
             self.pos += 1
+
+    def _is_closing_while(self):
+        """
+        Lookahead (Visión anticipada): Determina si el token 'while' actual es el 
+        cierre definitivo de un ciclo do-while o el comienzo de un ciclo while anidado.
+        Busca la estructura matemática exacta de cierre: while(...) ;
+        """
+        if not self.peek() or self.peek()['lexeme'] not in ['while', 'until']:
+            return False
+            
+        temp_pos = self.pos + 1
+        if temp_pos < len(self.tokens) and self.tokens[temp_pos]['lexeme'] == '(':
+            paren_count = 1
+            temp_pos += 1
+            while temp_pos < len(self.tokens) and paren_count > 0:
+                t = self.tokens[temp_pos]['lexeme']
+                if t == '(': paren_count += 1
+                elif t == ')': paren_count -= 1
+                temp_pos += 1
+            
+            # Si inmediatamente después de los paréntesis hay un punto y coma, es el cierre.
+            if temp_pos < len(self.tokens) and self.tokens[temp_pos]['lexeme'] == ';':
+                return True
+        return False
 
     # --- REGLAS DE LA GRAMÁTICA ---
     def parse(self):
@@ -84,7 +108,6 @@ class Parser:
             if stmt and stmt.name != "Sentencia Vacía":
                 root.add(stmt)
             elif not stmt:
-                # Si falló completamente y recover() no ayudó, forzamos el avance
                 self.pos += 1 
         return root
 
@@ -245,7 +268,7 @@ class Parser:
                 
         if use_then_end:
             self.expect(expected_lexeme='end')
-            if self.peek() and self.peek()['lexeme'] == ';': # Opcional punto y coma tras end
+            if self.peek() and self.peek()['lexeme'] == ';': 
                 self.consume()
                 
         return node
@@ -266,18 +289,37 @@ class Parser:
     def parse_do_while(self):
         node = ASTNode("Do-While")
         self.consume(expected_lexeme='do')
-        
+
         body = ASTNode("Cuerpo")
         if self.peek() and self.peek()['lexeme'] == '{':
             body.add(self.parse_block())
         else:
-            while self.peek() and self.peek()['lexeme'] != 'while':
+            # Tolerancia estilo Pascal Repeat-Until para sentencias múltiples sin llaves
+            while self.pos < len(self.tokens):
+                nxt = self.peek()
+                if not nxt or nxt['lexeme'] in ['end', '}']:
+                    break
+                
+                # Si encontramos un while/until, aplicamos Lookahead para ver si es el cierre
+                if nxt['lexeme'] in ['while', 'until']:
+                    if self._is_closing_while():
+                        break 
+                
                 stmt = self.parse_statement()
-                if stmt and stmt.name != "Sentencia Vacía": body.add(stmt)
-                    
-        if body.children: node.add(body)
-            
-        self.expect(expected_lexeme='while')
+                if stmt and stmt.name != "Sentencia Vacía": 
+                    body.add(stmt)
+
+        if body.children: 
+            node.add(body)
+
+        # Cierre del bloque Do (Soporta do-while o do-until)
+        if self.peek() and self.peek()['lexeme'] in ['while', 'until']:
+            closer = self.consume()
+            if closer['lexeme'] == 'until':
+                node.name = "Do-Until"
+        else:
+            self.expect(expected_lexeme='while')
+
         self.expect(expected_lexeme='(')
         expr = self.parse_expression()
         if expr: node.add(expr)
@@ -334,15 +376,27 @@ class Parser:
     def parse_io(self):
         token = self.consume()
         node = ASTNode("Entrada" if token['lexeme'] == 'cin' else "Salida")
-        if token['lexeme'] == 'cin':
-            self.expect(expected_lexeme='>')
-            self.expect(expected_lexeme='>')
+        is_cin = (token['lexeme'] == 'cin')
+        
+        if is_cin:
+            if self.peek() and self.peek()['lexeme'] == '>>':
+                self.consume()
         else:
-            self.expect(expected_lexeme='<')
-            self.expect(expected_lexeme='<')
+            if self.peek() and self.peek()['lexeme'] == '<<':
+                self.consume()
+
+        # Soporte para cin/cout en cascada: cout << a << b << "Hola";
+        while True:
+            expr = self.parse_expression()
+            if expr: node.add(expr)
             
-        expr = self.parse_expression()
-        if expr: node.add(expr)
+            if is_cin and self.peek() and self.peek()['lexeme'] == '>>':
+                self.consume()
+            elif not is_cin and self.peek() and self.peek()['lexeme'] == '<<':
+                self.consume()
+            else:
+                break
+
         self.expect(expected_lexeme=';')
         return node
 
@@ -417,11 +471,14 @@ class Parser:
         elif token['kind'] in ['Número Entero', 'Número Real']:
             t = self.consume()
             return ASTNode("Número", t['lexeme'])
+        elif token['kind'] == 'Cadena':
+            t = self.consume()
+            return ASTNode("Cadena de Texto", t['lexeme'])
         elif token['kind'] == 'Identificador':
             t = self.consume()
             ident_node = ASTNode("Identificador", t['lexeme'])
             
-            # --- EVALUACIÓN DE OPERADORES SUFIJOS (a++ / c--) ---
+            # Sufijos (a++, c--)
             next_token = self.peek()
             if next_token and next_token['lexeme'] in ['++', '--']:
                 op = self.consume()
@@ -436,7 +493,7 @@ class Parser:
             node.add(self.parse_factor())
             return node
         elif token['lexeme'] in ['++', '--']:
-            # --- EVALUACIÓN DE OPERADORES PREFIJOS (++a / --c) ---
+            # Prefijos (++a, --c)
             op = self.consume()
             ident = self.expect(expected_kind='Identificador')
             node = ASTNode("Operador Unario", op['lexeme'])
@@ -461,13 +518,15 @@ class CompilerManager:
             "Palabra Reservada": "#C586C0",
             "Delimitador": "#D4D4D4",
             "Asignación": "#D4D4D4",
+            "Op. Flujo": "#D4D4D4",
             "Op. Algebraico": "#D4D4D4",
             "Op. Relacional": "#D4D4D4",
             "Op. Lógico": "#D4D4D4",
             "Símbolo": "#D4D4D4",
             "Identificador": "#9CDCFE",
-            "Número Entero": "#CE9178",
-            "Número Real": "#CE9178",
+            "Cadena": "#CE9178",
+            "Número Entero": "#B5CEA8",
+            "Número Real": "#B5CEA8",
             "Error": "#F44747"
         }
         
@@ -558,17 +617,19 @@ class CompilerManager:
         self.lex_table.setItem(row, 2, col_line)
 
     def get_token_kind(self, token):
-        keywords = {"if", "else", "end", "do", "while", "switch", "case",
+        keywords = {"if", "else", "end", "do", "while", "until", "switch", "case",
                     "int", "float", "real", "main", "cin", "cout", "return", "then", "for"}
         
         if token in keywords: return "Palabra Reservada"
         if token == ";": return "Delimitador"
         if token == "=": return "Asignación"
+        if token in {"<<", ">>"}: return "Op. Flujo"
         if token in {"+", "-", "*", "/", "%", "^", "++", "--"}: return "Op. Algebraico"
         if token in {"<", ">", "<=", ">=", "==", "!="}: return "Op. Relacional"
         if token in {"&&", "||", "!"}: return "Op. Lógico"
         if token in {"(", ")", "{", "}", ","}: return "Símbolo"
         
+        if re.fullmatch(r'"[^"]*"', token): return "Cadena"
         if re.fullmatch(r'[a-zA-Z_][a-zA-Z0-9_]*', token): return "Identificador"
         if re.fullmatch(r'\d+', token): return "Número Entero"
         if re.fullmatch(r'\d+\.\d+', token): return "Número Real"
@@ -587,11 +648,14 @@ class CompilerManager:
         
         while i < n:
             ch = code[i]
+            
+            # 1. Ignorar espacios y saltos de línea
             if ch.isspace():
                 if ch == '\n': line_num += 1
                 i += 1
                 continue
 
+            # 2. Ignorar Comentarios
             if ch == '/' and i+1 < n:
                 if code[i+1] == '/':
                     i += 2
@@ -604,21 +668,50 @@ class CompilerManager:
                         i += 1
                     i += 2
                     continue
+            
+            # 3. Soporte para Cadenas de Texto ("Texto")
+            if ch == '"':
+                start = i
+                i += 1
+                while i < n and code[i] != '"':
+                    if code[i] == '\n': line_num += 1
+                    i += 1
+                if i < n:
+                    i += 1
+                    lexeme = code[start:i]
+                    self.add_to_table(lexeme, "Cadena", line_num)
+                else:
+                    lexeme = code[start:i]
+                    self.add_to_table(lexeme, "Error", line_num)
+                    self.terminal.log_problem("Léxico", f"Cadena sin cerrar en línea {line_num}")
+                continue
 
-            compound_ops = {'=': '=', '+': '+', '-': '-', '<': '=', '>': '=', '!': '=', '&': '&', '|': '|'}
-            if ch in compound_ops:
-                second = compound_ops[ch]
+            # 4. Operadores Compuestos y de flujo
+            first_chars = {'=', '+', '-', '<', '>', '!', '&', '|'}
+            if ch in first_chars:
                 j = i + 1
                 temp_line = line_num
                 while j < n and code[j].isspace():
                     if code[j] == '\n': temp_line += 1
                     j += 1
-                if j < n and code[j] == second:
-                    lexeme = ch + second
+                
+                valid_seconds = []
+                if ch == '=': valid_seconds = ['=']
+                elif ch == '+': valid_seconds = ['+']
+                elif ch == '-': valid_seconds = ['-']
+                elif ch == '<': valid_seconds = ['=', '<'] 
+                elif ch == '>': valid_seconds = ['=', '>'] 
+                elif ch == '!': valid_seconds = ['=']
+                elif ch == '&': valid_seconds = ['&']
+                elif ch == '|': valid_seconds = ['|']
+                
+                if j < n and code[j] in valid_seconds:
+                    lexeme = ch + code[j]
                     self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
                     i, line_num = j + 1, temp_line
                     continue
 
+            # 5. Identificadores y palabras reservadas
             if ch.isalpha() or ch == '_':
                 start = i
                 while i < n and (code[i].isalnum() or code[i] == '_'):
@@ -627,6 +720,7 @@ class CompilerManager:
                 self.add_to_table(lexeme, self.get_token_kind(lexeme), line_num)
                 continue
 
+            # 6. Números Enteros y Reales
             if ch.isdigit():
                 start = i
                 lexeme = ""
@@ -651,6 +745,7 @@ class CompilerManager:
                     self.add_to_table(lexeme, "Número Entero", line_num)
                 continue
 
+            # 7. Símbolos de un solo caracter
             if ch in symbols:
                 self.add_to_table(ch, self.get_token_kind(ch), line_num)
                 i += 1
@@ -687,10 +782,12 @@ class CompilerManager:
             
             if node.name in ["Programa", "Bloque", "Cuerpo", "Cuerpo True", "Cuerpo False"]:
                 item.setForeground(0, QColor("#DCDCAA"))
-            elif node.name in ["If", "While", "Do-While", "For", "Switch", "Case", "Función Principal"]:
+            elif node.name in ["If", "While", "Do-While", "Do-Until", "For", "Switch", "Case", "Función Principal"]:
                 item.setForeground(0, QColor("#C586C0"))
             elif node.name == "Declaración":
                 item.setForeground(0, QColor("#569CD6"))
+            elif node.name in ["Entrada", "Salida", "Cadena de Texto"]:
+                item.setForeground(0, QColor("#CE9178"))
             elif node.name == "Error":
                 item.setForeground(0, QColor("#F44747"))
                 
