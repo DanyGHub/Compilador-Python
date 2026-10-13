@@ -52,12 +52,14 @@ class EditorManager:
         self.btnLex = QPushButton("LEX")
         self.btnSin = QPushButton("SIN")
         self.btnSem = QPushButton("SEM")
+        self.btnHash = QPushButton("HASH")
         self.btnInt = QPushButton("INT")
         self.btnCompile = QPushButton("⚙️")
 
         self.btnLex.setToolTip("Lexical Analysis")
         self.btnSin.setToolTip("Syntactic Analysis")
         self.btnSem.setToolTip("Semantic Analysis")
+        self.btnHash.setToolTip("Tabla Hash / Tabla de Símbolos")
         self.btnInt.setToolTip("Intermediate Code")
         self.btnCompile.setToolTip("Compile")
         
@@ -67,7 +69,7 @@ class EditorManager:
         
         layout.addWidget(sep)
         
-        for btn in [self.btnLex, self.btnSin, self.btnSem, self.btnInt, self.btnCompile]:
+        for btn in [self.btnLex, self.btnSin, self.btnSem, self.btnHash, self.btnInt, self.btnCompile]:
             btn.setFixedSize(38, 28)
             layout.addWidget(btn)
 

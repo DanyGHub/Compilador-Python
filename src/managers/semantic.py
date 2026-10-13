@@ -27,13 +27,12 @@ class BucketListRec:
     def add_line(self, lineno):
         if lineno is None or lineno == "EOF":
             return
-        # Agregar al final de la lista enlazada LineListRec
+        # Agregar al final de la lista enlazada LineListRec (permite registrar múltiples apariciones en la misma línea)
         curr = self.lines_head
         while curr.next is not None:
             curr = curr.next
-        if curr.lineno != lineno:
-            curr.next = LineListRec(lineno)
-            self.lines.append(lineno)
+        curr.next = LineListRec(lineno)
+        self.lines.append(lineno)
 
 
 class SymbolTable:

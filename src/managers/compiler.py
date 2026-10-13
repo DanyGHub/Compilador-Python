@@ -668,7 +668,7 @@ class CompilerManager:
         self.hash_out = QTableWidget()
         self.hash_out.setColumnCount(7)
         self.hash_out.setHorizontalHeaderLabels([
-            "Hash", "Identificador", "Tipo", "Ámbito", "Memoria", "Valor", "Líneas"
+            "Nombre", "Tipo", "Líneas de variable", "Registro", "Ámbito", "Valor", "Hash"
         ])
         self.hash_out.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         hash_header = self.hash_out.horizontalHeader()
@@ -1036,22 +1036,26 @@ class CompilerManager:
             lines_str = ", ".join(str(line) for line in entry.lines)
 
             cells = [
-                QTableWidgetItem(str(entry.hash_index)),
                 QTableWidgetItem(entry.name),
                 QTableWidgetItem(entry.dtype),
-                QTableWidgetItem(entry.scope),
+                QTableWidgetItem(lines_str),
                 QTableWidgetItem(str(entry.memloc)),
+                QTableWidgetItem(entry.scope),
                 QTableWidgetItem(val_str),
-                QTableWidgetItem(lines_str)
+                QTableWidgetItem(str(entry.hash_index))
             ]
 
             type_color = "#569CD6" if entry.dtype == "int" else ("#4EC9B0" if entry.dtype == "float" else "#C586C0")
-            cells[1].setForeground(QColor("#9CDCFE"))
-            cells[2].setForeground(QColor(type_color))
+            cells[0].setForeground(QColor("#9CDCFE"))
+            cells[1].setForeground(QColor(type_color))
+            cells[2].setForeground(QColor("#D4D4D4"))
+            cells[3].setForeground(QColor("#DCDCAA"))
+            cells[4].setForeground(QColor("#CE9178"))
             cells[5].setForeground(QColor("#B5CEA8"))
+            cells[6].setForeground(QColor("#808080"))
 
             for idx, item in enumerate(cells):
-                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if idx != 6 else (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter))
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter if idx != 2 else (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter))
                 self.hash_out.setItem(row, idx, item)
 
         self.hash_out.viewport().update()

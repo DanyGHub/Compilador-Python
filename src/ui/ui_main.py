@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'src\ui\mainWindow.ui'
+# Form implementation generated from reading ui file 'src/ui/mainWindow.ui'
 #
 # Created by: PyQt6 UI code generator 6.10.2
 #
@@ -95,12 +95,12 @@ class Ui_MainWindow(object):
         self.btnSemantic = QtWidgets.QPushButton(parent=self.rightAccessBar)
         self.btnSemantic.setObjectName("btnSemantic")
         self.vLayoutRight.addWidget(self.btnSemantic)
-        self.btnIntermediate = QtWidgets.QPushButton(parent=self.rightAccessBar)
-        self.btnIntermediate.setObjectName("btnIntermediate")
-        self.vLayoutRight.addWidget(self.btnIntermediate)
         self.btnHash = QtWidgets.QPushButton(parent=self.rightAccessBar)
         self.btnHash.setObjectName("btnHash")
         self.vLayoutRight.addWidget(self.btnHash)
+        self.btnIntermediate = QtWidgets.QPushButton(parent=self.rightAccessBar)
+        self.btnIntermediate.setObjectName("btnIntermediate")
+        self.vLayoutRight.addWidget(self.btnIntermediate)
         spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Policy.Minimum, QtWidgets.QSizePolicy.Policy.Expanding)
         self.vLayoutRight.addItem(spacerItem1)
         self.mainLayout.addWidget(self.mainSplitter)
@@ -135,6 +135,8 @@ class Ui_MainWindow(object):
         self.actionSyntactic.setObjectName("actionSyntactic")
         self.actionSemantic = QtGui.QAction(parent=MainWindow)
         self.actionSemantic.setObjectName("actionSemantic")
+        self.actionHash = QtGui.QAction(parent=MainWindow)
+        self.actionHash.setObjectName("actionHash")
         self.actionIntermediateCode = QtGui.QAction(parent=MainWindow)
         self.actionIntermediateCode.setObjectName("actionIntermediateCode")
         self.actionAbout = QtGui.QAction(parent=MainWindow)
@@ -153,6 +155,7 @@ class Ui_MainWindow(object):
         self.menuAnalysis.addAction(self.actionLexical)
         self.menuAnalysis.addAction(self.actionSyntactic)
         self.menuAnalysis.addAction(self.actionSemantic)
+        self.menuAnalysis.addAction(self.actionHash)
         self.menuCompile.addAction(self.menuAnalysis.menuAction())
         self.menuCompile.addAction(self.actionIntermediateCode)
         self.menuHelp.addAction(self.actionAbout)
@@ -175,8 +178,8 @@ class Ui_MainWindow(object):
         self.btnLexical.setText(_translate("MainWindow", "LEX"))
         self.btnSyntactic.setText(_translate("MainWindow", "SIN"))
         self.btnSemantic.setText(_translate("MainWindow", "SEM"))
-        self.btnIntermediate.setText(_translate("MainWindow", "INT"))
         self.btnHash.setText(_translate("MainWindow", "HASH"))
+        self.btnIntermediate.setText(_translate("MainWindow", "INT"))
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.menuCompile.setTitle(_translate("MainWindow", "Compile"))
         self.menuAnalysis.setTitle(_translate("MainWindow", "Analysis"))
@@ -190,6 +193,7 @@ class Ui_MainWindow(object):
         self.actionLexical.setText(_translate("MainWindow", "Lexical"))
         self.actionSyntactic.setText(_translate("MainWindow", "Syntactic"))
         self.actionSemantic.setText(_translate("MainWindow", "Semantic"))
+        self.actionHash.setText(_translate("MainWindow", "Tabla Hash"))
         self.actionIntermediateCode.setText(_translate("MainWindow", "Intermediate Code"))
         self.actionAbout.setText(_translate("MainWindow", "About"))
         self.actionOpen_Folder.setText(_translate("MainWindow", "Open Folder"))

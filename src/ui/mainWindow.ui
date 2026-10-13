@@ -198,16 +198,16 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="btnIntermediate">
+         <widget class="QPushButton" name="btnHash">
           <property name="text">
-           <string>INT</string>
+           <string>HASH</string>
           </property>
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="btnHash">
+         <widget class="QPushButton" name="btnIntermediate">
           <property name="text">
-           <string>HASH</string>
+           <string>INT</string>
           </property>
          </widget>
         </item>
@@ -264,6 +264,7 @@
      <addaction name="actionLexical"/>
      <addaction name="actionSyntactic"/>
      <addaction name="actionSemantic"/>
+      <addaction name="actionHash"/>
     </widget>
     <addaction name="menuAnalysis"/>
     <addaction name="actionIntermediateCode"/>
@@ -321,6 +322,11 @@
   <action name="actionSemantic">
    <property name="text">
     <string>Semantic</string>
+   </property>
+  </action>
+  <action name="actionHash">
+   <property name="text">
+    <string>Tabla Hash</string>
    </property>
   </action>
   <action name="actionIntermediateCode">

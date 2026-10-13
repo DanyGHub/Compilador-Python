@@ -41,6 +41,8 @@ class CompilerIDE(QMainWindow):
             self.ui.actionSyntactic.triggered.connect(self.run_syntactic_analysis)
         if hasattr(self.ui, 'actionSemantic'):
             self.ui.actionSemantic.triggered.connect(self.run_semantic_analysis)
+        if hasattr(self.ui, 'actionHash'):
+            self.ui.actionHash.triggered.connect(self.run_hash_analysis)
         if hasattr(self.ui, 'actionIntermediateCode'):
             self.ui.actionIntermediateCode.triggered.connect(lambda: self.compiler.toggle_panel(3, "CÓDIGO INTERMEDIO"))
         
@@ -77,8 +79,8 @@ class CompilerIDE(QMainWindow):
         self.ui.btnLexical.clicked.connect(lambda: self.compiler.toggle_panel(0, "LÉXICO"))
         self.ui.btnSyntactic.clicked.connect(lambda: self.compiler.toggle_panel(1, "SINTÁCTICO"))
         self.ui.btnSemantic.clicked.connect(lambda: self.compiler.toggle_panel(2, "SEMÁNTICO"))
+        self.ui.btnHash.clicked.connect(self.run_hash_analysis)
         self.ui.btnIntermediate.clicked.connect(lambda: self.compiler.toggle_panel(3, "CÓDIGO INTERMEDIO"))
-        self.ui.btnHash.clicked.connect(lambda: self.compiler.toggle_panel(4, "TABLA HASH"))
         
         self.ui.btnFolder.clicked.connect(self.toggle_project_sidebar)
         self.ui.treeViewExplorer.doubleClicked.connect(self.on_tree_file_double_clicked)
@@ -144,6 +146,34 @@ class CompilerIDE(QMainWindow):
             self.terminal.clear_problems()
             self.terminal.log("No hay código para analizar semánticamente.")
 
+    def run_hash_analysis(self):
+        # Si la Tabla Hash ya está visible, alternar visibilidad (cerrar)
+        if self.compiler.right_panel.isVisible() and self.compiler.result_stack.currentIndex() == 4:
+            self.compiler.right_panel.setVisible(False)
+            return
+
+        code = self.editor.get_current_code()
+        if code.strip():
+            self.terminal.clear_problems()
+
+            # 1. Ejecutar Léxico silenciosamente
+            self.compiler.run_lexical_analysis(code, show_panel=False)
+
+            # 2. Ejecutar Sintáctico silenciosamente
+            self.compiler.run_syntactic_analysis(show_panel=False)
+
+            # 3. Ejecutar Semántico para generar la Tabla de Símbolos a partir del AST anotado
+            self.compiler.run_semantic_analysis(show_panel=False)
+
+            # 4. Mostrar la pestaña de la Tabla Hash
+            self.compiler.show_panel(4, "TABLA HASH")
+            self.terminal.log("Tabla de Símbolos (Hash) generada a partir del Análisis Semántico.")
+        else:
+            self.compiler.hash_out.setRowCount(0)
+            self.compiler.show_panel(4, "TABLA HASH")
+            self.terminal.clear_problems()
+            self.terminal.log("No hay código para generar la Tabla de Símbolos.")
+
     def connect_toolbar_actions(self):
         self.editor.btnNew.clicked.connect(self.ui.actionNew.trigger)
         self.editor.btnOpen.clicked.connect(self.ui.actionOpen.trigger)
@@ -155,6 +185,8 @@ class CompilerIDE(QMainWindow):
         self.editor.btnLex.clicked.connect(self.run_lexical_analysis)
         self.editor.btnSin.clicked.connect(self.run_syntactic_analysis)
         self.editor.btnSem.clicked.connect(self.run_semantic_analysis)
+        if hasattr(self.editor, 'btnHash'):
+            self.editor.btnHash.clicked.connect(self.run_hash_analysis)
         self.editor.btnInt.clicked.connect(lambda: self.compiler.toggle_panel(3, "CÓDIGO INTERMEDIO"))
         self.editor.btnCompile.clicked.connect(self.run_semantic_analysis)
 
