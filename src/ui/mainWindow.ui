@@ -56,13 +56,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="btnSearch">
-         <property name="text">
-          <string>🔍</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <spacer name="spacerActivity">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -79,13 +72,6 @@
         <widget class="QPushButton" name="btnTerminalView">
          <property name="text">
           <string>&gt;_</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="btnNotifications">
-         <property name="text">
-          <string>🔔</string>
          </property>
         </widget>
        </item>
@@ -147,146 +133,11 @@
          <property name="bottomMargin">
           <number>0</number>
          </property>
-         <item>
-          <widget class="QFrame" name="editorHeader">
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>35</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>16777215</width>
-             <height>35</height>
-            </size>
-           </property>
-           <property name="frameShape">
-            <enum>QFrame::NoFrame</enum>
-           </property>
-           <layout class="QHBoxLayout" name="hLayoutHeader">
-            <property name="spacing">
-             <number>10</number>
-            </property>
-            <property name="leftMargin">
-             <number>10</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>10</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QLabel" name="lblCurrentFileName">
-              <property name="font">
-               <font>
-                <family>Segoe UI</family>
-                <pointsize>9</pointsize>
-                <weight>75</weight>
-                <bold>true</bold>
-               </font>
-              </property>
-              <property name="text">
-               <string>Archivo1.py  X</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="headerSpacer">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QPushButton" name="btnRunCode">
-              <property name="maximumSize">
-               <size>
-                <width>30</width>
-                <height>30</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>▶</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="editorSubContainer" native="true">
-           <layout class="QHBoxLayout" name="hLayoutText">
-            <property name="spacing">
-             <number>2</number>
-            </property>
-            <property name="leftMargin">
-             <number>0</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QPlainTextEdit" name="lineNumberArea">
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="font">
-               <font>
-                <family>Courier New</family>
-               </font>
-              </property>
-              <property name="readOnly">
-               <bool>true</bool>
-              </property>
-              <property name="plainText">
-               <string>1</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPlainTextEdit" name="mainCodeEditor">
-              <property name="font">
-               <font>
-                <family>Courier New</family>
-                <pointsize>10</pointsize>
-               </font>
-              </property>
-              <property name="lineWrapMode">
-               <enum>QPlainTextEdit::NoWrap</enum>
-              </property>
-              <property name="placeholderText">
-               <string>Escribe tu código aquí...</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
         </layout>
        </widget>
        <widget class="QTabWidget" name="bottomTabWidget">
         <property name="currentIndex">
-         <number>2</number>
+         <number>1</number>
         </property>
         <widget class="QWidget" name="tabProblems">
          <attribute name="title">
@@ -297,11 +148,6 @@
            <widget class="QListWidget" name="listProblems"/>
           </item>
          </layout>
-        </widget>
-        <widget class="QWidget" name="tabDebug">
-         <attribute name="title">
-          <string>Debug Console</string>
-         </attribute>
         </widget>
         <widget class="QWidget" name="tabTerminal">
          <attribute name="title">
@@ -359,9 +205,9 @@
          </widget>
         </item>
         <item>
-         <widget class="QPushButton" name="btnOptim">
+         <widget class="QPushButton" name="btnHash">
           <property name="text">
-           <string>OPT</string>
+           <string>HASH</string>
           </property>
          </widget>
         </item>

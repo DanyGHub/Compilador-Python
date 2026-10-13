@@ -20,8 +20,9 @@ class TerminalManager:
             out = self.ui.listProblems
             header = f"==== {phase.upper()} ===="
             
-            # Si la lista está vacía, agregamos el encabezado
-            if out.count() == 0:
+            # Agregamos el encabezado de la fase si aún no existe en la lista actual
+            existing_items = [out.item(i).text() for i in range(out.count())]
+            if header not in existing_items:
                 out.addItem(header)
             
             out.addItem(f"Error, {message}")

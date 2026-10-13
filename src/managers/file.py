@@ -14,7 +14,7 @@ class FileManager:
         if file_path:
             self.current_file = file_path
             try:
-                with open(file_path, "r") as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     return file_path, f.read()
             except Exception as e:
                 print(f"Error al leer el archivo: {e}")
@@ -25,24 +25,28 @@ class FileManager:
         save_path = path if path else self.current_file
         if save_path:
             try:
-                with open(save_path, "w") as f:
+                with open(save_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 self.current_file = save_path
+                return save_path
             except Exception as e:
                 print(f"Error al guardar el archivo: {e}")
+        return None
     
     def save_as_file(self, content):
-        """Guarda el contenido en un nuevo archivo."""
+        """Guarda el contenido en un nuevo archivo y retorna la ruta guardada."""
         file_path, _ = QFileDialog.getSaveFileName(
             self.parent, "Save File", "", "All Files (*)"
         )
         if file_path:
             try:
-                with open(file_path, "w") as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 self.current_file = file_path
+                return file_path
             except Exception as e:
                 print(f"Error al guardar el archivo: {e}")
+        return None
 
     def open_folder_dialog(self):
         """Abre el diálogo para seleccionar una carpeta."""
@@ -55,7 +59,7 @@ class FileManager:
         """Lee el contenido de un archivo dado su path."""
         if file_path:
             try:
-                with open(file_path, "r") as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     return f.read()
             except Exception as e:
                 print(f"Error al leer el archivo: {e}")

@@ -30,25 +30,27 @@ class CompilerIDE(QMainWindow):
         self.connect_toolbar_actions()
         
     def setup_connections(self):
-        # Conexión segura de botones de terminal
-        if hasattr(self.ui, 'btnTerminal'):
-            self.ui.btnTerminal.clicked.connect(self.terminal.toggle_panel)
+        # Conexión de botón de terminal
         if hasattr(self.ui, 'btnTerminalView'):
             self.ui.btnTerminalView.clicked.connect(self.terminal.toggle_panel)
 
-        # Acciones de Menú (Corregidas para evitar AttributeError)
+        # Acciones de Menú de Compilación
         if hasattr(self.ui, 'actionLexical'):
-            self.ui.actionLexical.triggered.connect(lambda: self.compiler.toggle_panel(0, "LÉXICO"))
+            self.ui.actionLexical.triggered.connect(self.run_lexical_analysis)
         if hasattr(self.ui, 'actionSyntactic'):
-            self.ui.actionSyntactic.triggered.connect(lambda: self.compiler.toggle_panel(1, "SINTÁCTICO"))
+            self.ui.actionSyntactic.triggered.connect(self.run_syntactic_analysis)
+        if hasattr(self.ui, 'actionSemantic'):
+            self.ui.actionSemantic.triggered.connect(self.run_semantic_analysis)
+        if hasattr(self.ui, 'actionIntermediateCode'):
+            self.ui.actionIntermediateCode.triggered.connect(lambda: self.compiler.toggle_panel(3, "CÓDIGO INTERMEDIO"))
         
     def setup_initial_state(self):
         self.setWindowTitle("Compilador IDE")
         self.project.setup_explorer()
-        self.editor.toggle_editor_view(False)
+        self.on_new_file()
         self.project.toggle_sidebar(False)
         self.ui.rightAccessBar.setFixedWidth(70)
-        self.ui.bottomTabWidget.setCurrentIndex(2) 
+        self.ui.bottomTabWidget.setCurrentWidget(self.ui.tabTerminal)
         self.terminal.log("IDE Iniciado correctamente...")
         self.ui.centerSplitter.setSizes([500, 200])
         self.ui.mainSplitter.setSizes([200, 500, 330, 70])
@@ -71,7 +73,7 @@ class CompilerIDE(QMainWindow):
         self.ui.actionSaveAs.triggered.connect(self.on_save_as_file)
         self.ui.actionExit.triggered.connect(self.close)
 
-        # Botones de acceso lateral
+        # Botones de acceso lateral (alternan vista entre Léxico, Sintáctico, Semántico, Código Intermedio y Tabla Hash)
         self.ui.btnLexical.clicked.connect(lambda: self.compiler.toggle_panel(0, "LÉXICO"))
         self.ui.btnSyntactic.clicked.connect(lambda: self.compiler.toggle_panel(1, "SINTÁCTICO"))
         self.ui.btnSemantic.clicked.connect(lambda: self.compiler.toggle_panel(2, "SEMÁNTICO"))
@@ -82,13 +84,7 @@ class CompilerIDE(QMainWindow):
         self.ui.treeViewExplorer.doubleClicked.connect(self.on_tree_file_double_clicked)
 
     def load_stylesheet(self):
-        # Verificar si estamos en el ejecutable empaquetado por PyInstaller
-        if hasattr(sys, '_MEIPASS'):
-            base_path = sys._MEIPASS
-
-        else:
-            base_path = os.path.dirname(__file__)
-            
+        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(__file__)
         style_path = os.path.join(base_path, "resources", "style.qss")
         if os.path.exists(style_path):
             try:
@@ -97,31 +93,56 @@ class CompilerIDE(QMainWindow):
             except Exception as e:
                 print(f"Error al leer el archivo de estilos: {e}")
         
-    # Busca esta función en ide_window.py
     def run_lexical_analysis(self):
         code = self.editor.get_current_code()
-        if code:
-            self.compiler.run_lexical_analysis(code)   
+        if code.strip():
+            self.compiler.run_lexical_analysis(code, show_panel=True)
             self.terminal.log("Análisis Léxico finalizado.")
         else:
+            self.compiler.lex_table.setRowCount(0)
+            self.compiler.tokens_list = []
+            self.terminal.clear_problems()
             self.terminal.log("No hay código para analizar.")
     
     def run_syntactic_analysis(self):
         code = self.editor.get_current_code()
-        if code:
+        if code.strip():
             # Forzamos la limpieza de la terminal de problemas 
             self.terminal.clear_problems()
             
             # 1. Siempre se requiere correr el léxico primero silenciosamente para actualizar los tokens
-            self.compiler.run_lexical_analysis(code)
+            self.compiler.run_lexical_analysis(code, show_panel=False)
             
             # 2. Correr el Sintáctico y pintar el árbol
-            self.compiler.run_syntactic_analysis()
+            self.compiler.run_syntactic_analysis(show_panel=True)
             
             # Si hubo errores sintácticos, la pestaña Problems se habrá abierto automáticamente
             self.terminal.log("Análisis Sintáctico finalizado (revisa los problemas si aplica).")
         else:
+            self.compiler.sin_out.clear()
+            self.terminal.clear_problems()
             self.terminal.log("No hay código para analizar sintácticamente.")
+
+    def run_semantic_analysis(self):
+        code = self.editor.get_current_code()
+        if code.strip():
+            self.terminal.clear_problems()
+
+            # 1. Ejecutar Análisis Léxico (actualiza tabla léxica y tokens)
+            self.compiler.run_lexical_analysis(code, show_panel=False)
+
+            # 2. Ejecutar Análisis Sintáctico (construye el AST original en la pestaña SINTÁCTICO)
+            self.compiler.run_syntactic_analysis(show_panel=False)
+
+            # 3. Ejecutar Análisis Semántico (construye el AST anotado en SEMÁNTICO y llena la TABLA HASH)
+            self.compiler.run_semantic_analysis(show_panel=True)
+
+            self.terminal.log("Análisis Semántico y Tabla de Símbolos finalizados.")
+        else:
+            self.compiler.sem_out.clear()
+            self.compiler.hash_out.setRowCount(0)
+            self.terminal.clear_problems()
+            self.terminal.log("No hay código para analizar semánticamente.")
 
     def connect_toolbar_actions(self):
         self.editor.btnNew.clicked.connect(self.ui.actionNew.trigger)
@@ -130,19 +151,12 @@ class CompilerIDE(QMainWindow):
         self.editor.btnSave.clicked.connect(self.ui.actionSave.trigger)
         self.editor.btnSaveAs.clicked.connect(self.ui.actionSaveAs.trigger)
         
-        # Conexiones para Análisis
+        # Conexiones para Análisis en la barra de herramientas
         self.editor.btnLex.clicked.connect(self.run_lexical_analysis)
-        self.editor.btnSin.clicked.connect(self.run_syntactic_analysis) # <--- Cambiado aquí
-        
-        # Si tienes la acción de menú conectada en setup_connections o connect_signals, haz que apunte también:
-        if hasattr(self.ui, 'actionSyntactic'):
-            self.ui.actionSyntactic.triggered.disconnect() # Desconecta el lambda anterior si existía
-            self.ui.actionSyntactic.triggered.connect(self.run_syntactic_analysis)
-
-        # Para el botón de la barra lateral "btnSyntactic" en connect_signals:
-        if hasattr(self.ui, 'btnSyntactic'):
-             self.ui.btnSyntactic.clicked.disconnect()
-             self.ui.btnSyntactic.clicked.connect(self.run_syntactic_analysis)
+        self.editor.btnSin.clicked.connect(self.run_syntactic_analysis)
+        self.editor.btnSem.clicked.connect(self.run_semantic_analysis)
+        self.editor.btnInt.clicked.connect(lambda: self.compiler.toggle_panel(3, "CÓDIGO INTERMEDIO"))
+        self.editor.btnCompile.clicked.connect(self.run_semantic_analysis)
 
     # --- Lógica de Archivos ---
     def on_new_file(self):
@@ -165,11 +179,10 @@ class CompilerIDE(QMainWindow):
 
     def on_save_as_file(self):
         content = self.editor.get_current_code()
-        self.file_manager.save_as_file(content)
-        if self.file_manager.current_file:
-            path = self.file_manager.current_file
-            self.editor.tabs.setTabToolTip(self.editor.tabs.currentIndex(), path)
-            self.editor.set_name_tab(self.editor.tabs.currentIndex(), os.path.basename(path))
+        saved_path = self.file_manager.save_as_file(content)
+        if saved_path:
+            self.editor.tabs.setTabToolTip(self.editor.tabs.currentIndex(), saved_path)
+            self.editor.set_name_tab(self.editor.tabs.currentIndex(), os.path.basename(saved_path))
 
     def on_close_file(self):
         self.editor.close_tab(self.editor.tabs.currentIndex())
@@ -178,6 +191,8 @@ class CompilerIDE(QMainWindow):
         path = self.file_manager.open_folder_dialog()
         if path:
             self.project.setup_explorer(path)
+            if self.compiler.right_panel.isVisible():
+                self.compiler.right_panel.setVisible(False)
             self.project.toggle_sidebar(True)
 
     def on_tree_file_double_clicked(self, index):
@@ -189,14 +204,13 @@ class CompilerIDE(QMainWindow):
                 self.editor.toggle_editor_view(True)
 
     def toggle_project_sidebar(self):
-        self.project.toggle_sidebar(not self.ui.sideBarProject.isVisible())
-
-    def load_stylesheet(self):
-        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(__file__)
-        style_path = os.path.join(base_path, "resources", "style.qss")
-        if os.path.exists(style_path):
-            with open(style_path, "r", encoding="utf-8") as f:
-                self.setStyleSheet(f.read())
+        if not self.project.current_path:
+            self.on_open_folder()
+        else:
+            opening = not self.ui.sideBarProject.isVisible()
+            if opening and self.compiler.right_panel.isVisible():
+                self.compiler.right_panel.setVisible(False)
+            self.project.toggle_sidebar(opening)
 
     def closeEvent(self, event):
         event.accept()

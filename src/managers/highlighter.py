@@ -15,7 +15,7 @@ class CustomHighlighter(QSyntaxHighlighter):
 
         # Colores Visual Studio Code Dark+
         COLOR_KEYWORD    = "#C586C0"   # Púrpura
-        COLOR_NUMBER     = "#CE9178"   # Naranja
+        COLOR_NUMBER     = "#B5CEA8"   # Verde claro
         COLOR_COMMENT    = "#6A9955"   # Verde
         COLOR_OPERATOR   = "#D4D4D4"   # Gris claro
         COLOR_SYMBOL     = "#D4D4D4"
@@ -32,8 +32,8 @@ class CustomHighlighter(QSyntaxHighlighter):
         # 2. Palabras reservadas (Sobrescriben identificadores)
         keyword_format = create_format(COLOR_KEYWORD, bold=True)
         keywords = [
-            "if", "else", "end", "do", "while", "switch", "case",
-            "int", "float", "real", "main", "cin", "cout", "return", "then", "for"
+            "if", "else", "end", "do", "while", "until", "switch", "case", "default", "break",
+            "int", "float", "real", "bool", "true", "false", "main", "cin", "cout", "return", "then", "for"
         ]
         for word in keywords:
             pattern = QRegularExpression(fr'\b{word}\b')
@@ -53,12 +53,12 @@ class CustomHighlighter(QSyntaxHighlighter):
         # 4. Operadores y Símbolos
         operator_format = create_format(COLOR_OPERATOR)
         # Compuestos
-        comp_ops = [r'<=', r'>=', r'!=', r'==', r'&&', r'\|\|', r'\+\+', r'\-\-']
+        comp_ops = [r'<=', r'>=', r'!=', r'==', r'<<', r'>>', r'&&', r'\|\|', r'\+\+', r'\-\-']
         for op in comp_ops:
             self.highlighting_rules.append((QRegularExpression(op), operator_format))
         # Simples
         simple_elements = [r'\+', r'\-', r'\*', r'/', r'%', r'\^', r'<', r'>', r'!', r'=', 
-                           r'\(', r'\)', r'\{', r'\}', r',', r';']
+                           r'\(', r'\)', r'\{', r'\}', r',', r';', r':']
         for el in simple_elements:
             self.highlighting_rules.append((QRegularExpression(el), operator_format))
 
@@ -72,7 +72,7 @@ class CustomHighlighter(QSyntaxHighlighter):
             # Caso 34.34.34 -> Un punto que aparece inmediatamente después de un número real
             r'(?<=\d\.\d)\.',
             # Caracteres ilegales (no permitidos en el lenguaje)
-            r'[^\s\w\+\-\*/%\^=<>!&\|\(\)\{\},;\.]'
+            r'[^\s\w\+\-\*/%\^=<>!&\|\(\)\{\},;\.:]'
         ]
         for pat in invalid_patterns:
             self.highlighting_rules.append((QRegularExpression(pat), error_format))

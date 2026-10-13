@@ -47,12 +47,6 @@ QPlainTextEdit {
     selection-background-color: #3b3bff;
 }
 
-#lineNumberArea {
-    background-color: #1e2233;
-    color: #5a5f73;
-    border-right: 1px solid #2d334a;
-}
-
 /* Pestañas (TabWidgets) */
 QTabWidget::pane {
     border: 1px solid #2d334a;
@@ -85,31 +79,6 @@ QTabBar::tab:selected {
 
 #rightAccessBar QPushButton:hover {
     background-color: #3b3bff;
-}
-
-/* Encabezado del editor */
-#editorHeader {
-    background-color: #121520;
-    border-bottom: 1px solid #2d334a;
-}
-
-#lblCurrentFileName {
-    color: #ffffff;
-    padding: 5px 10px;
-    background-color: #1e2233; 
-    border-top: 2px solid #3b3bff;
-}
-
-#btnRunCode {
-    background-color: transparent;
-    color: #00ff88;
-    border: none;
-    font-size: 16px;
-}
-
-#btnRunCode:hover {
-    background-color: rgba(0, 255, 136, 0.1);
-    border-radius: 4px;
 }
 
 /* Estilo para el área de numeración en todas las pestañas */

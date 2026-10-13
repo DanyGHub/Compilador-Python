@@ -19,14 +19,10 @@ class EditorManager:
             layout.setSpacing(0)
             self.ui.editorContainer.setLayout(layout)
 
+        self.ui.editorContainer.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
         self.setup_toolbar()
         self.ui.editorContainer.layout().insertWidget(0, self.toolbarFrame)
         self.ui.editorContainer.layout().addWidget(self.tabs)
-
-        # Ocultar placeholders de Designer
-        self.ui.mainCodeEditor.hide()
-        self.ui.lineNumberArea.hide()
-        self.ui.editorHeader.setVisible(False)
 
     def setup_toolbar(self):
         self.toolbarFrame = QFrame()
@@ -79,12 +75,14 @@ class EditorManager:
 
     def set_content(self, text, filename="Untitled", path=None):
         tab_widget = QWidget()
+        tab_widget.setObjectName("tabContainer")
         tab_main_layout = QVBoxLayout(tab_widget)
         tab_main_layout.setContentsMargins(0, 0, 0, 0)
         tab_main_layout.setSpacing(0)
 
         editor_layout = QHBoxLayout()
         line_numbers = QPlainTextEdit()
+        line_numbers.setProperty("lineNumbers", True)
         line_numbers.setFixedWidth(50)
         line_numbers.setReadOnly(True)
         line_numbers.setFont(QFont("Courier New", 10))
@@ -92,8 +90,9 @@ class EditorManager:
 
         code_editor = QPlainTextEdit()
         code_editor.setObjectName("mainEditor")
-        code_editor.setStyleSheet("background-color: #353535; color: #000000;")
-        self.highlighter = CustomHighlighter(code_editor.document())
+        code_editor.setProperty("codeEditor", True)
+        code_editor.setStyleSheet("background-color: #353535; color: #d4d4d4;")
+        code_editor.highlighter = CustomHighlighter(code_editor.document())
         code_editor.setPlainText(text)
         code_editor.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         code_editor.setFont(QFont("Courier New", 10))
